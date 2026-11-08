@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HUB de RPG - Sistema Personalizado</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- React & React DOM -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <!-- Babel Standalone para transpilar JSX no navegador -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    body { background-color: #0f172a; color: #f8fafc; font-family: system-ui, -apple-system, sans-serif; }
+    .t20-card { background-color: #1e293b; border: 1px solid #334155; border-radius: 0.75rem; }
+    .t20-btn-primary { background-color: #dc2626; color: white; transition: all 0.2s; }
+    .t20-btn-primary:hover { background-color: #b91c1c; }
+    /* Custom Scrollbar for tooltips */
+    .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    // --- ESTRUTURA EDITÁVEL: RAÇAS & HABILIDADES ---
+    const RACES = {
+      Humano: {
+        desc: "Versáteis e adaptáveis, integram-se facilmente a qualquer cultura.",
+        mods: { FOR: 1, DES: 1, CON: 1, INT: 0, SAB: 0, CAR: 0 },
+        traits: [
+          { name: "Versátil", desc: "Aprende duas perícias adicionais à sua escolha ou ganha um Poder Geral no nível 1." },
+          { name: "Adaptabilidade", desc: "Recebe +2 em testes de Resistência contra efeitos climáticos ou ambientais." }
+        ]
+      },
+      Anão: {
+        desc: "Resistentes e tradicionais, peritos em combate e trabalhos em pedra/metal.",
+        mods: { FOR: 0, DES: -1, CON: 2, INT: 0, SAB: 1, CAR: 0 },
+        traits: [
+          { name: "Duro como Pedra", desc: "Aumenta seus Pontos de Vida (PV) máximos em +3 no 1º nível e +1 por nível seguinte." },
+          { name: "Visão no Escuro", desc: "Enxerga na escuridão natural em alcance curto sem sofrer penalidades." },
+          { name: "Tradição de Forja", desc: "Proficiência com armas de impacto e machados." }
+        ]
+      },
+      Elfo: {
+        desc: "Graciosos e conectados à magia ancestral e aos ecossistemas naturais.",
+        mods: { FOR: 0, DES: 2, CON: -1, INT: 1, SAB: 0, CAR: 0 },
+        traits: [
+          { name: "Graça Feérica", desc: "Deslocamento base aumentado para 12m (em vez de 9m)." },
+          { name: "Herança Mística", desc: "Ganha +1 Ponto de Mana (PM) adicional por nível." },
+          { name: "Sentidos Apurados", desc: "Recebe +2 em testes de Percepção e Visão na Penumbra." }
+        ]
+      },
+      Qareen: {
+        desc: "Meio-gênios tocados pelos elementos, dotados de carisma místico.",
+        mods: { FOR: 0, DES: 0, CON: 0, INT: 1, SAB: -1, CAR: 2 },
+        traits: [
+          { name: "Desejos", desc: "Se lançar uma magia a pedido de um aliado, o custo da magia reduz em -1 PM (mínimo 1)." },
+          { name: "Resistência Elementar", desc: "Escolha um elemento (Fogo, Frio, Eletricidade ou Ácido) para ganhar Resistência 5." }
+        ]
+      }
+    };
+
+    // --- ESTRUTURA EDITÁVEL: CLASSES & HABILIDADES ---
+    const CLASSES = {
+      Guerreiro: {
+        basePV: 20, basePM: 3,
+        pericias: ["Luta", "Fortitude", "Atletismo"],
+        proficiencias: ["Armas marciais", "Armaduras pesadas", "Escudos"],
+        abilities: [
+          { name: "Ataque Especial", desc: "Gaste 1 PM para somar +4 no teste de ataque ou +4 na rolagem de dano." },
+          { name: "Durão", desc: "Reação (2 PM): reduz o dano sofrido de um ataque pela metade." }
+        ]
+      },
+      Arcanista: {
+        basePV: 8, basePM: 6,
+        pericias: ["Misticismo", "Vontade", "Conhecimento"],
+        proficiencias: ["Nenhuma (apenas armas simples)"],
+        abilities: [
+          { name: "Caminho Arcano", desc: "Escolha entre Bruxo (foco), Mago (grimório) ou Feiticeiro (linhagem)." },
+          { name: "Conjuração", desc: "Capacidade de lançar magias de 1º círculo utilizando Mana." }
+        ]
+      },
+      Ladino: {
+        basePV: 12, basePM: 4,
+        pericias: ["Ladinagem", "Reflexos", "Furtividade", "Enganação"],
+        proficiencias: ["Armas simples", "Armaduras leves"],
+        abilities: [
+          { name: "Ataque Furtivo", desc: "Causa +1d6 de dano contra alvos desprevenidos ou flanqueados." },
+          { name: "Especialista", desc: "Escolha duas perícias para somar o dobro do seu bônus de treinamento." }
+        ]
+      },
+      Clérigo: {
+        basePV: 16, basePM: 5,
+        pericias: ["Religião", "Vontade", "Cura"],
+        proficiencias: ["Armaduras pesadas", "Escudos", "Arma preferida da divindade"],
+        abilities: [
+          { name: "Devoto Fiel", desc: "Canaliza energia divina para curar ferimentos ou causar dano a mortos-vivos." },
+          { name: "Magias Divinas", desc: "Acesso a magias de suporte, proteção e abençoamento." }
+        ]
+      }
+    };
+
+    // --- ESTRUTURA EDITÁVEL: PODERES SELECIONÁVEIS ---
+    const POWERS_DATABASE = [
+      { id: 'p1', name: 'Ataque Poderoso', type: 'Combate', desc: '-2 no teste de ataque para causar +5 de dano corpo a corpo.' },
+      { id: 'p2', name: 'Esquiva', type: 'Combate', desc: '+2 na Defesa e em testes de Reflexos.' },
+      { id: 'p3', name: 'Vontade de Ferro', type: 'Geral', desc: '+2 em testes de Vontade e +1 PM por nível.' },
+      { id: 'p4', name: 'Foco em Perícia', type: 'Geral', desc: 'Escolha uma perícia. Você pode rolar novamente testes falhos com ela gastando 1 PM.' },
+      { id: 'p5', name: 'Magia Expandida', type: 'Arcano', desc: 'Aumenta o alcance de suas magias em um passo (ex: Curto ➔ Médio).' },
+      { id: 'p6', name: 'Vitalidade', type: 'Geral', desc: '+1d8 de PV adicionais e +2 em testes de Fortitude.' }
+    ];
+
+    function App() {
+      const [activeTab, setActiveTab] = useState('builder');
+      const [step, setStep] = useState(1);
+      
+      // Estado da Ficha
+      const [name, setName] = useState('');
+      const [selectedRace, setSelectedRace] = useState('Humano');
+      const [selectedClass, setSelectedClass] = useState('Guerreiro');
+      const [attributes, setAttributes] = useState({ FOR: 10, DES: 10, CON: 10, INT: 10, SAB: 10, CAR: 10 });
+      const [selectedPowers, setSelectedPowers] = useState([]);
+      
+      // Estado dos Tooltips (Hover / Clique)
+      const [hoveredRace, setHoveredRace] = useState(null);
+      const [hoveredClass, setHoveredClass] = useState(null);
+
+      // Estado do Mundo (Lore Editável)
+      const [worldTitle, setWorldTitle] = useState('Meu Mundo Customizado');
+      const [worldDesc, setWorldDesc] = useState('Escreva aqui o resumo do seu mundo homebrew. Esse espaço é totalment editável para você colocar as facções, história e particularidades da sua mesa.');
+      const [isEditingLore, setIsEditingLore] = useState(false);
+
+      const calcMod = (val) => Math.floor((val - 10) / 2);
+
+      const getFinalAttr = (attr) => {
+        const base = attributes[attr];
+        const raceMod = RACES[selectedRace]?.mods[attr] || 0;
+        return base + (raceMod * 2);
+      };
+
+      const getMod = (attr) => calcMod(getFinalAttr(attr));
+
+      const totalPV = (CLASSES[selectedClass]?.basePV || 0) + getMod('CON');
+      const totalPM = (CLASSES[selectedClass]?.basePM || 0) + getMod('INT');
+      const defesa = 10 + getMod('DES');
+
+      const togglePower = (powerId) => {
+        if (selectedPowers.includes(powerId)) {
+          setSelectedPowers(selectedPowers.filter(id => id !== powerId));
+        } else {
+          setSelectedPowers([...selectedPowers, powerId]);
+        }
+      };
+
+      return (
+        <div className="min-h-screen flex flex-col max-w-5xl mx-auto p-4 md:p-6">
+          {/* Header */}
+          <header className="flex flex-col md:flex-row justify-between items-center pb-6 mb-6 border-b border-slate-800 gap-4">
+            <div>
+              <h1 className="text-3xl font-extrabold text-red-500 flex items-center gap-2">
+                🛡️ HUB de RPG & Criador
+              </h1>
+              <p className="text-slate-400 text-sm">Criação rápida de ficha e base de dados para o seu mundo customizado</p>
+            </div>
+            
+            {/* Navegação por Abas */}
+            <nav className="flex gap-2 bg-slate-800 p-1 rounded-xl">
+              <button 
+                onClick={() => setActiveTab('builder')} 
+                className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${activeTab === 'builder' ? 'bg-red-600 text-white' : 'text-slate-400 hover:text-white'}`}>
+                🧙 Criador de Ficha
+              </button>
+              <button 
+                onClick={() => setActiveTab('rules')} 
+                className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${activeTab === 'rules' ? 'bg-red-600 text-white' : 'text-slate-400 hover:text-white'}`}>
+                📖 Regras Rápidas
+              </button>
+              <button 
+                onClick={() => setActiveTab('world')} 
+                className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${activeTab === 'world' ? 'bg-red-600 text-white' : 'text-slate-400 hover:text-white'}`}>
+                🌍 O Mundo
+              </button>
+            </nav>
+          </header>
+
+          {/* ABA 1: CRIADOR DE FICHA */}
+          {activeTab === 'builder' && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* Painel Principal de Etapas */}
+              <div className="md:col-span-2 space-y-6">
+                
+                {/* Indicador de Passos */}
+                <div className="flex justify-between bg-slate-800/60 p-3 rounded-lg border border-slate-700">
+                  {['1. Raça', '2. Classe', '3. Atributos', '4. Poderes', '5. Resumo'].map((lbl, idx) => (
+                    <button 
+                      key={idx} 
+                      onClick={() => setStep(idx + 1)}
+                      className={`text-xs md:text-sm font-bold px-3 py-1 rounded transition-all ${step === idx + 1 ? 'bg-red-500/20 text-red-400 border border-red-500/40' : 'text-slate-400 hover:text-slate-200'}`}>
+                      {lbl}
+                    </button>
+                  ))}
+                </div>
+
+                {/* PASSO 1: RAÇAS COM TOOLTIP / PREVIEW */}
+                {step === 1 && (
+                  <div className="t20-card p-5 space-y-4">
+                    <div>
+                      <h2 className="text-xl font-bold text-slate-100">Escolha sua Raça</h2>
+                      <p className="text-xs text-slate-400">Passe o mouse (ou toque) sobre uma raça para visualizar suas habilidades.</p>
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      {Object.keys(RACES).map((r) => (
+                        <button
+                          key={r}
+                          onClick={() => setSelectedRace(r)}
+                          onMouseEnter={() => setHoveredRace(r)}
+                          className={`p-3 rounded-lg border text-left transition-all relative ${selectedRace === r ? 'border-red-500 bg-red-950/30 text-white shadow-lg' : 'border-slate-700 bg-slate-900/40 text-slate-400 hover:border-slate-500'}`}>
+                          <div className="font-bold">{r}</div>
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Card de Visualização / Tooltip Dinâmico */}
+                    {hoveredRace || selectedRace ? (
+                      <div className="p-4 bg-slate-900 rounded-lg border border-red-900/50 space-y-3">
+                        <div className="flex justify-between items-center border-b border-slate-800 pb-2">
+                          <h3 className="font-bold text-red-400 text-lg">{hoveredRace || selectedRace}</h3>
+                          <span className="text-xs text-slate-500">Habilidades Raciais</span>
+                        </div>
+                        <p className="text-xs text-slate-300 italic">{RACES[hoveredRace || selectedRace].desc}</p>
+                        <div className="space-y-2 pt-1">
+                          {RACES[hoveredRace || selectedRace].traits.map((trait, i) => (
+                            <div key={i} className="bg-slate-800/80 p-2 rounded border border-slate-700/60 text-xs">
+                              <span className="font-bold text-amber-400">{trait.name}: </span>
+                              <span className="text-slate-300">{trait.desc}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+
+                    <button onClick={() => setStep(2)} className="t20-btn-primary w-full py-2.5 rounded-lg font-bold">Próximo: Escolher Classe ➔</button>
+                  </div>
+                )}
+
+                {/* PASSO 2: CLASSES COM TOOLTIP / PREVIEW */}
+                {step === 2 && (
+                  <div className="t20-card p-5 space-y-4">
+                    <div>
+                      <h2 className="text-xl font-bold text-slate-100">Escolha sua Classe</h2>
+                      <p className="text-xs text-slate-400">Passe o mouse (ou toque) sobre uma classe para ver suas habilidades principais.</p>
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      {Object.keys(CLASSES).map((c) => (
+                        <button
+                          key={c}
+                          onClick={() => setSelectedClass(c)}
+                          onMouseEnter={() => setHoveredClass(c)}
+                          className={`p-3 rounded-lg border text-left transition-all ${selectedClass === c ? 'border-red-500 bg-red-950/30 text-white shadow-lg' : 'border-slate-700 bg-slate-900/40 text-slate-400 hover:border-slate-500'}`}>
+                          <div className="font-bold">{c}</div>
+                          <div className="text-xs text-slate-500">PV: {CLASSES[c].basePV} | PM: {CLASSES[c].basePM}</div>
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Card de Visualização / Tooltip Dinâmico */}
+                    {hoveredClass || selectedClass ? (
+                      <div className="p-4 bg-slate-900 rounded-lg border border-red-900/50 space-y-3">
+                        <div className="flex justify-between items-center border-b border-slate-800 pb-2">
+                          <h3 className="font-bold text-red-400 text-lg">{hoveredClass || selectedClass}</h3>
+                          <span className="text-xs text-slate-500">Recursos de Classe</span>
+                        </div>
+                        <div className="text-xs text-slate-300">
+                          <strong>Proficiências:</strong> {CLASSES[hoveredClass || selectedClass].proficiencias.join(', ')}
+                        </div>
+                        <div className="space-y-2 pt-1">
+                          {CLASSES[hoveredClass || selectedClass].abilities.map((ab, i) => (
+                            <div key={i} className="bg-slate-800/80 p-2 rounded border border-slate-700/60 text-xs">
+                              <span className="font-bold text-blue-400">{ab.name}: </span>
+                              <span className="text-slate-300">{ab.desc}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+
+                    <div className="flex gap-3">
+                      <button onClick={() => setStep(1)} className="w-1/3 py-2.5 bg-slate-800 text-slate-300 rounded-lg font-bold">⬅ Voltar</button>
+                      <button onClick={() => setStep(3)} className="t20-btn-primary w-2/3 py-2.5 rounded-lg font-bold">Próximo: Atributos ➔</button>
+                    </div>
+                  </div>
+                )}
+
+                {/* PASSO 3: ATRIBUTOS */}
+                {step === 3 && (
+                  <div className="t20-card p-5 space-y-4">
+                    <h2 className="text-xl font-bold text-slate-100">Ajuste de Atributos</h2>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {Object.keys(attributes).map((attr) => (
+                        <div key={attr} className="p-3 bg-slate-900/80 rounded-lg border border-slate-800 flex items-center justify-between">
+                          <div>
+                            <span className="font-bold text-slate-200">{attr}</span>
+                            <span className="text-xs text-slate-500 ml-2">(Mod: {getMod(attr) >= 0 ? `+${getMod(attr)}` : getMod(attr)})</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button 
+                              onClick={() => setAttributes(p => ({...p, [attr]: Math.max(8, p[attr] - 1)}))}
+                              className="w-7 h-7 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded">-</button>
+                            <span className="w-8 text-center font-bold text-white">{getFinalAttr(attr)}</span>
+                            <button 
+                              onClick={() => setAttributes(p => ({...p, [attr]: Math.min(18, p[attr] + 1)}))}
+                              className="w-7 h-7 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded">+</button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex gap-3">
+                      <button onClick={() => setStep(2)} className="w-1/3 py-2.5 bg-slate-800 text-slate-300 rounded-lg font-bold">⬅ Voltar</button>
+                      <button onClick={() => setStep(4)} className="t20-btn-primary w-2/3 py-2.5 rounded-lg font-bold">Próximo: Poderes ➔</button>
+                    </div>
+                  </div>
+                )}
+
+                {/* PASSO 4: SISTEMA DE PODERES SELECIONÁVEIS */}
+                {step === 4 && (
+                  <div className="t20-card p-5 space-y-4">
+                    <div>
+                      <h2 className="text-xl font-bold text-slate-100">Seleção de Poderes</h2>
+                      <p className="text-xs text-slate-400">Clique para selecionar ou remover os poderes do seu personagem.</p>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {POWERS_DATABASE.map((power) => {
+                        const isSelected = selectedPowers.includes(power.id);
+                        return (
+                          <div 
+                            key={power.id}
+                            onClick={() => togglePower(power.id)}
+                            className={`p-3 rounded-lg border cursor-pointer transition-all ${isSelected ? 'border-amber-500 bg-amber-950/20 text-white' : 'border-slate-800 bg-slate-900/40 text-slate-400 hover:border-slate-700'}`}>
+                            <div className="flex justify-between items-center mb-1">
+                              <span className="font-bold text-slate-200">{power.name}</span>
+                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 font-semibold text-amber-400">{power.type}</span>
+                            </div>
+                            <p className="text-xs text-slate-400">{power.desc}</p>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    <div className="flex gap-3">
+                      <button onClick={() => setStep(3)} className="w-1/3 py-2.5 bg-slate-800 text-slate-300 rounded-lg font-bold">⬅ Voltar</button>
+                      <button onClick={() => setStep(5)} className="t20-btn-primary w-2/3 py-2.5 rounded-lg font-bold">Ver Resumo da Ficha ➔</button>
+                    </div>
+                  </div>
+                )}
+
+                {/* PASSO 5: RESUMO FINAL DA FICHA */}
+                {step === 5 && (
+                  <div className="t20-card p-5 space-y-4 border-2 border-red-500/40">
+                    <div className="flex justify-between items-center">
+                      <h2 className="text-2xl font-black text-red-500">FICHA PRONTA!</h2>
+                      <button onClick={() => window.print()} className="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-300 rounded">🖨️ Imprimir / PDF</button>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4 bg-slate-900 p-4 rounded-lg">
+                      <div>
+                        <label className="text-xs text-slate-500 uppercase font-bold">Nome do Personagem</label>
+                        <input 
+                          type="text" 
+                          placeholder="Digite o nome..." 
+                          value={name} 
+                          onChange={(e) => setName(e.target.value)}
+                          className="w-full bg-slate-800 border border-slate-700 rounded p-2 text-white font-bold mt-1 focus:outline-none focus:border-red-500" 
+                        />
+                      </div>
+                      <div>
+                        <div className="text-xs text-slate-500 uppercase font-bold">Conceito</div>
+                        <div className="text-sm font-bold text-slate-200 mt-2">{selectedRace} - {selectedClass} (Nível 1)</div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-3 text-center">
+                      <div className="p-3 bg-red-950/40 border border-red-800/60 rounded-lg">
+                        <div className="text-xs font-bold text-red-400">PV (Vida)</div>
+                        <div className="text-2xl font-black text-white">{totalPV}</div>
+                      </div>
+                      <div className="p-3 bg-blue-950/40 border border-blue-800/60 rounded-lg">
+                        <div className="text-xs font-bold text-blue-400">PM (Mana)</div>
+                        <div className="text-2xl font-black text-white">{totalPM}</div>
+                      </div>
+                      <div className="p-3 bg-amber-950/40 border border-amber-800/60 rounded-lg">
+                        <div className="text-xs font-bold text-amber-400">Defesa</div>
+                        <div className="text-2xl font-black text-white">{defesa}</div>
+                      </div>
+                    </div>
+
+                    {/* Poderes Escolhidos na Ficha */}
+                    {selectedPowers.length > 0 && (
+                      <div className="bg-slate-900 p-4 rounded-lg space-y-2">
+                        <div className="text-xs font-bold text-amber-400 uppercase">Poderes Selecionados:</div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {selectedPowers.map(id => {
+                            const p = POWERS_DATABASE.find(x => x.id === id);
+                            return (
+                              <div key={id} className="bg-slate-800 p-2 rounded text-xs border border-slate-700">
+                                <span className="font-bold text-slate-200">{p?.name}: </span>
+                                <span className="text-slate-400">{p?.desc}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Resumo Lateral Direita */}
+              <div className="t20-card p-5 h-fit space-y-4">
+                <h3 className="text-lg font-bold text-slate-200 border-b border-slate-800 pb-2">Resumo da Ficha</h3>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between"><span className="text-slate-500">Raça:</span> <span className="font-bold text-red-400">{selectedRace}</span></div>
+                  <div className="flex justify-between"><span className="text-slate-500">Classe:</span> <span className="font-bold text-red-400">{selectedClass}</span></div>
+                  <div className="flex justify-between"><span className="text-slate-500">PV:</span> <span className="font-bold text-white">{totalPV}</span></div>
+                  <div className="flex justify-between"><span className="text-slate-500">PM:</span> <span className="font-bold text-white">{totalPM}</span></div>
+                  <div className="flex justify-between"><span className="text-slate-500">Poderes:</span> <span className="font-bold text-amber-400">{selectedPowers.length}</span></div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ABA 2: REGRAS RÁPIDAS */}
+          {activeTab === 'rules' && (
+            <div className="t20-card p-6 space-y-4">
+              <h2 className="text-2xl font-bold text-slate-100">Regras Rápidas & Adaptações</h2>
+              <p className="text-sm text-slate-400">Adapte estas seções com as regras da sua mesa de RPG homebrew.</p>
+            </div>
+          )}
+
+          {/* ABA 3: O MUNDO (LORE HOMEBREW EDITÁVEL) */}
+          {activeTab === 'world' && (
+            <div className="t20-card p-6 space-y-6">
+              <div className="flex justify-between items-center border-b border-slate-800 pb-4">
+                <div>
+                  <h2 className="text-2xl font-black text-red-500">{worldTitle}</h2>
+                  <p className="text-xs text-slate-400">Guia do Seu Mundo Customizado</p>
+                </div>
+                <button 
+                  onClick={() => setIsEditingLore(!isEditingLore)}
+                  className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-300 rounded border border-slate-700">
+                  {isEditingLore ? '💾 Salvar Alterações' : '✏️ Editar Texto'}
+                </button>
+              </div>
+
+              {isEditingLore ? (
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-xs font-bold text-slate-400">Título do Mundo / Campanha:</label>
+                    <input 
+                      type="text" 
+                      value={worldTitle} 
+                      onChange={(e) => setWorldTitle(e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white font-bold mt-1"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-slate-400">Lore / Descrição:</label>
+                    <textarea 
+                      rows={5}
+                      value={worldDesc} 
+                      onChange={(e) => setWorldDesc(e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-700 rounded p-2 text-slate-200 mt-1"
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="p-4 bg-slate-900/60 border border-slate-800 rounded-lg text-slate-300 leading-relaxed text-sm">
+                  {worldDesc}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    ReactDOM.render(<App />, document.getElementById('root'));
+  </script>
+</body>
+</html>
