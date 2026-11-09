@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>HUB de RPG - Sistema Personalizado</title>
+  <title>T20 RPG - Sistema Personalizado</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- React & React DOM -->
@@ -18,6 +18,13 @@
     .t20-btn-primary:hover { background-color: #b91c1c; }
     .custom-scrollbar::-webkit-scrollbar { width: 4px; }
     .custom-scrollbar::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+    @media print {
+      body { background-color: white !important; color: black !important; }
+      .no-print { display: none !important; }
+      .t20-card { background-color: white !important; border: 1px solid #ccc !important; color: black !important; box-shadow: none !important; }
+      .print-black { color: black !important; }
+      .print-border { border-color: #ccc !important; }
+    }
   </style>
 </head>
 <body>
@@ -42,6 +49,7 @@
       { name: "Adestramento", attr: "CAR" },
       { name: "Atletismo", attr: "FOR" },
       { name: "Atuação", attr: "CAR" },
+      { name: "Cavalar", attr: "DES" },
       { name: "Conhecimento", attr: "INT" },
       { name: "Cura", attr: "SAB" },
       { name: "Diplomacia", attr: "CAR" },
@@ -51,81 +59,233 @@
       { name: "Intuição", attr: "SAB" },
       { name: "Investigação", attr: "INT" },
       { name: "Ladinagem", attr: "DES" },
+      { name: "Luta", attr: "FOR" },
       { name: "Misticismo", attr: "INT" },
       { name: "Ofício", attr: "INT" },
       { name: "Percepção", attr: "SAB" },
       { name: "Pilotagem", attr: "DES" },
+      { name: "Pontaria", attr: "DES" },
       { name: "Religião", attr: "SAB" },
       { name: "Sobrevivência", attr: "SAB" }
     ];
 
-    // --- ESTRUTURA DE RAÇAS COM RESERVA DE PODERES ---
+    // --- LISTA DE IDIOMAS DISPONÍVEIS ---
+    const EXTRA_LANGUAGES = [
+      "Arcano", "Celestial", "Infernal", "Anão", "Élfico", "Dracônico", "Silvestre", "Subterrâneo"
+    ];
+
+    // --- LISTA DE KITS DE FERRAMENTAS ---
+    const TOOL_KITS = [
+      "Kit de Ferreiro", "Kit de Disfarces", "Kit de Gazuas / Ladinagem", 
+      "Kit de Ervas e Cura", "Kit de Estudos & Pergaminhos", "Kit de Oratória", "Kit de Navegação"
+    ];
+
+    // --- LISTA DE ORIGENS ---
+    const ORIGINS = {
+      "Aethelgard (Capital do Sol)": {
+        desc: "Nascido no coração político e cultural do império.",
+        skillBonus: "Diplomacia",
+        items: [{ category: "Ferramenta", name: "Selo de Nobreza / Kit de Oratória" }]
+      },
+      "Kael-Thas (Capital dos Sábios)": {
+        desc: "Criado sob as torres arcanas e bibliotecas milenares.",
+        skillBonus: "Conhecimento",
+        items: [{ category: "Ferramenta", name: "Kit de Estudos & Pergaminhos" }]
+      },
+      "Ironforge (Capital do Ferro)": {
+        desc: "Forjado no calor das fundições e oficinas subterrâneas.",
+        skillBonus: "Ofício",
+        items: [{ category: "Ferramenta", name: "Kit de Ferramentas de Ferreiro" }]
+      },
+      "Vaeloria (Capital das Artes)": {
+        desc: "Educado em conservatórios e teatros renomados.",
+        skillBonus: "Atuação",
+        items: [{ category: "Ferramenta", name: "Instrumento Musical de Luxo" }]
+      },
+      "Shadowfen (Capital Sombria)": {
+        desc: "Acostumado aos colossos de pedra e becos perigosos.",
+        skillBonus: "Furtividade",
+        items: [{ category: "Arma", name: "Adaga Oculta" }, { category: "Ferramenta", name: "Gazuas" }]
+      },
+      "Porto Solis (Capital Marítima)": {
+        desc: "Marinheiro experiente dos grandes docas imperiais.",
+        skillBonus: "Pilotagem",
+        items: [{ category: "Ferramenta", name: "Bússola de Latão e Cordas" }]
+      },
+      "Verdantys (Capital da Natureza)": {
+        desc: "Guardião vindo da metrópole integrada às florestas antigas.",
+        skillBonus: "Sobrevivência",
+        items: [{ category: "Ferramenta", name: "Kit de Ervas e Forrageamento" }]
+      },
+      "Sanctum (Capital Sagrada)": {
+        desc: "Cresceu sob os cânticos dos grandes catedrais da Fé.",
+        skillBonus: "Religião",
+        items: [{ category: "Ferramenta", name: "Símbolo Sagrado Entalhado" }]
+      },
+      "Grimspire (Capital da Guerra)": {
+        desc: "Treinado em academias militares severas e arenas.",
+        skillBonus: "Atletismo",
+        items: [{ category: "Arma", name: "Espada Curta de Treino" }]
+      },
+      "Whisperhold (Capital dos Segredos)": {
+        desc: "Mestre em teias de espionagem e intriga palaciana.",
+        skillBonus: "Enganação",
+        items: [{ category: "Ferramenta", name: "Kit de Disfarces" }]
+      },
+      "Oasis (Capital do Deserto)": {
+        desc: "Nativo da joia comercial entre as dunas sem fim.",
+        skillBonus: "Intuição",
+        items: [{ category: "Ferramenta", name: "Tendas e Suprimentos de Caravana" }]
+      },
+      "Obsidian Keep (Capital Infernal)": {
+        desc: "Fortaleza erguida sobre fendas vulcânicas e pactos antigos.",
+        skillBonus: "Intimidação",
+        items: [{ category: "Arma", name: "Chicote de Couro Rúnico" }]
+      },
+      "Viajante / Nômade": {
+        desc: "Sem pátria fixa, acostumado a cruzar fronteiras e estepes.",
+        skillBonus: "Percepção",
+        items: [{ category: "Ferramenta", name: "Kit de Aventureiro (Mochila, Odre, Saco de Dormir)" }]
+      }
+    };
+
+    // --- ESTRUTURA DE RAÇAS COM SUPORTE A SUBRAÇAS ---
     const RACES = {
       Humano: {
-        desc: "Versáteis e adaptáveis, começam com 2 pontos na reserva de Poderes Gerais.",
+        desc: "Adaptáveis a quaisquer situações.",
         mods: { FOR: 1, DES: 1, CON: 1, INT: 0, SAB: 0, CAR: 0 },
         traits: [
-          { name: "Versátil", desc: "Aprende duas perícias adicionais e ganha +1 ponto em Poder Geral extra." }
+          { name: "Versátil", desc: "Começam com um Poder Geral e dois Treinamentos adicionais." }
         ],
-        powerSlotsBonus: { Geral: 2, Arcano: 0, Divino: 0, Ínfero: 0 }
+        powerSlotsBonus: { Geral: 2, Arcano: 0, Divino: 0, Ínfero: 0 },
+        resistances: {},
+        hasSubRaces: false
       },
       Anão: {
-        desc: "Resistentes e tradicionais, peritos em combate e trabalhos em pedra/metal.",
+        desc: "Resistentes e tradicionais, peritos em combate e resiliência.",
         mods: { FOR: 0, DES: -1, CON: 2, INT: 0, SAB: 1, CAR: 0 },
         traits: [
-          { name: "Duro como Pedra", desc: "Aumenta seus PVs máximos em +3 no 1º nível." },
-          { name: "Visão no Escuro", desc: "Enxerga na escuridão natural em alcance curto." }
+          { name: "Duro como Pedra", desc: "Aumenta os PVs máximos em 5 e recebe +5 de Proteção contra dano de Impacto" }
         ],
-        powerSlotsBonus: { Geral: 1, Arcano: 0, Divino: 0, Ínfero: 0 }
+        powerSlotsBonus: { Geral: 1, Arcano: 0, Divino: 0, Ínfero: 0 },
+        resistances: { Impacto: 5 },
+        hasSubRaces: true,
+        subRaceLabel: "Clã Anão",
+        subRaces: [
+          {
+            id: "anao_pedra",
+            name: "Anão da Pedra",
+            desc: "Geólogos, engenheiros e arquitetos, se especializaram na expansão das cavernas, conseguindo, literalmente, sentir através da terra.",
+            extraMods: { CON: 0 },
+            extraTrait: { name: "Sentido de Tremor", desc: "Enquanto estiver tocando o chão, você tem Visão às Cegas de 9 metros." },
+            extraResistances: { Impacto: 2 }
+          },
+          {
+            id: "anao_fogo",
+            name: "Anão do Fogo",
+            desc: "Ferreiros e combatentes, são aqueles que protegem e guardam os bastiões, principalmente contra os Ínferos.",
+            extraMods: { INT: 0 },
+            extraTrait: { name: "Coração Ardente", desc: "Aumenta a Proficiência de Luta e Artesanato em um grau. Tem +2 de Proteção contra Fogo." },
+            extraResistances: { Fogo: 2 }
+          }
+        ]
       },
       Ínfero: {
-        desc: "Crias de linhagens sombrias ou infernais, marcados por chifres ou olhos flamejantes.",
+        desc: "Uma mutação genética faz com que, alguns.",
         mods: { FOR: 0, DES: 1, CON: 0, INT: 1, SAB: -1, CAR: 1 },
         traits: [
           { name: "Herança Sombria", desc: "Começam com 1 vaga extra para escolher um Poder Ínfero." }
         ],
-        powerSlotsBonus: { Geral: 1, Arcano: 0, Divino: 0, Ínfero: 1 }
+        powerSlotsBonus: { Geral: 1, Arcano: 0, Divino: 0, Ínfero: 1 },
+        resistances: { Fogo: 5 },
+        hasSubRaces: true,
+        subRaceLabel: "Linhagem Diabólica",
+        subRaces: [
+          {
+            id: "infero_chamas",
+            name: "Linhagem das Chamas",
+            desc: "Seu sangue arde com o calor do abismo.",
+            extraMods: { CAR: 1 },
+            extraTrait: { name: "Aura Incandescente", desc: "+2 de Resistência a Fogo extra." },
+            extraResistances: { Fogo: 2 }
+          },
+          {
+            id: "infero_sombras",
+            name: "Linhagem das Sombras",
+            desc: "Passos silenciosos e afinidade com o plano das sombras.",
+            extraMods: { DES: 1 },
+            extraTrait: { name: "Passo Obscuro", desc: "+2 em testes de Furtividade." },
+            extraResistances: {}
+          }
+        ]
+      },
+      Tritão: {
+        desc: "Povo místico das profundezas com voz encantadora.",
+        mods: { FOR: 0, DES: 1, CON: 0, INT: 0, SAB: 0, CAR: 2 },
+        traits: [
+          { name: "Canção do Mar", desc: "Permite conjurar a habilidade Sono utilizando CARISMA (CAR)." }
+        ],
+        powerSlotsBonus: { Geral: 1, Arcano: 0, Divino: 0, Ínfero: 0 },
+        resistances: { Frio: 5 },
+        hasSubRaces: false
       }
     };
 
-    // --- ESTRUTURA DE CLASSES COM OPÇÕES DE SUB-ESCOLHAS ---
+    // --- ESTRUTURA DE CLASSES COM ESCOLHA DINÂMICA DE COMPETÊNCIAS ---
     const CLASSES = {
       Guerreiro: {
+        keyAttr: null, // Marcial
         basePV: 20, basePM: 3,
-        classCompetencies: ["Atletismo", "Luta"],
+        competencyChoiceCount: 2,
+        availableCompetencies: ["Atletismo", "Luta", "Adestramento", "Cavalar", "Pontaria", "Intimidação"],
         defensesConfig: { Fortitude: 2, Reflexos: 1, Vontade: 0 },
         attacksConfig: { Luta: 2, Pontaria: 1 },
         powerSlotsBonus: { Geral: 0, Arcano: 0, Divino: 0, Ínfero: 0 },
+        startingEquipment: [
+          { category: "Arma", name: "Espada Longa (1d8 cortante)" },
+          { category: "Armadura", name: "Cota de Malha (+5 Defesa)" }
+        ],
         abilities: [
-          { name: "Ataque Especial", desc: "Gaste 1 PM para somar +4 no teste de ataque ou dano." },
+          { name: "Ataque Especial", desc: "Gaste 1 PM para somar +4 no teste de ataque ou dano (Usa FOR)." },
           { name: "Durão", desc: "Reação (2 PM): reduz o dano sofrido pela metade." }
         ]
       },
       Feiticeiro: {
+        keyAttr: "INT", // Conjurador Arcano
         basePV: 8, basePM: 6,
-        classCompetencies: ["Misticismo", "Conhecimento"],
+        competencyChoiceCount: 2,
+        availableCompetencies: ["Misticismo", "Conhecimento", "Enganação", "Investigação", "Atuação"],
         defensesConfig: { Vontade: 2, Reflexos: 1, Fortitude: 0 },
         attacksConfig: { Luta: 0, Pontaria: 1 },
         powerSlotsBonus: { Geral: 0, Arcano: 1, Divino: 0, Ínfero: 0 },
-        // SUB-ESCOLHA: Linhagem Elemental
+        startingEquipment: [
+          { category: "Arma", name: "Cajado Arcano (1d6 impacto)" },
+          { category: "Armadura", name: "Manto de Proteção (+1 Defesa)" }
+        ],
         subChoiceLabel: "Linhagem Elemental",
         subChoices: [
           { id: "fogo", name: "Fogo", attackName: "Raio Flamejante", attackDesc: "Ataque à distância causando 1d6 de dano de Fogo e incendiando o alvo." },
           { id: "gelo", name: "Gelo", attackName: "Lança de Gelo", attackDesc: "Ataque à distância causando 1d6 de dano de Frio e reduzindo deslocamento em -3m." },
-          { id: "trovao", name: "Trovão", attackName: "Choque Elétrico", attr: "DES", attackDesc: "Ataque à distância causando 1d6 de dano Elétrico e atordoando em acerto crítico." }
+          { id: "trovao", name: "Trovão", attackName: "Choque Elétrico", attackDesc: "Ataque à distância causando 1d6 de dano Elétrico e atordoando em acerto crítico." }
         ],
         abilities: [
-          { name: "Conjuração Arcana", desc: "Capacidade de lançar magias arcanas utilizando Mana." }
+          { name: "Conjuração Arcana", desc: "Lança magias arcanas utilizando seu Modificador Chave de INTELIGÊNCIA (INT)." }
         ]
       },
       Clérigo: {
+        keyAttr: "SAB", // Conjurador Divino
         basePV: 16, basePM: 5,
-        classCompetencies: ["Religião", "Cura"],
+        competencyChoiceCount: 2,
+        availableCompetencies: ["Religião", "Cura", "Diplomacia", "Intuição", "Conhecimento"],
         defensesConfig: { Vontade: 2, Fortitude: 1, Reflexos: 0 },
         attacksConfig: { Luta: 1, Pontaria: 0 },
         powerSlotsBonus: { Geral: 0, Arcano: 0, Divino: 1, Ínfero: 0 },
+        startingEquipment: [
+          { category: "Arma", name: "Maça Divina (1d8 impacto)" },
+          { category: "Armadura", name: "Escudo Pesado (+2 Defesa)" }
+        ],
         abilities: [
-          { name: "Devoto Fiel", desc: "Canaliza energia divina e tem acesso a Poderes Divinos." }
+          { name: "Devoto Fiel", desc: "Canaliza milagres divinos utilizando seu Modificador Chave de SABEDORIA (SAB)." }
         ]
       }
     };
@@ -136,30 +296,32 @@
         { id: 'g1', name: 'Ataque Poderoso', desc: '-2 no ataque para causar +5 de dano corpo a corpo.' },
         { id: 'g2', name: 'Esquiva', desc: '+2 na Defesa e em testes de Reflexos.' },
         { id: 'g3', name: 'Vontade de Ferro', desc: '+2 em testes de Vontade e +1 PM por nível.' },
-        { id: 'g4', name: 'Vitalidade', desc: '+1d8 de PV adicionais e +2 em testes de Fortitude.' }
+        { id: 'g4', name: 'Vitalidade', desc: '+1d8 de PV adicionais e +2 em testes de Fortitude.' },
+        { id: 'g5', name: 'Pele Tenaz', desc: 'Concede +3 de Resistência a Cortante e Impacto.', resistanceBonus: { Cortante: 3, Impacto: 3 } }
       ],
       Arcano: [
         { id: 'a1', name: 'Magia Expandida', desc: 'Aumenta o alcance de suas magias em um passo.' },
-        { id: 'a2', name: 'Foco em Mana', desc: 'Reduz o custo de todas as suas magias em -1 PM (mínimo 1).' }
+        { id: 'a2', name: 'Foco em Mana', desc: 'Reduz o custo de magias em -1 PM.' },
+        { id: 'a3', name: 'Escudo Elemental', desc: 'Concede +5 de Resistência a Elétrico.', resistanceBonus: { Elétrico: 5 } }
       ],
       Divino: [
         { id: 'd1', name: 'Benção dos Céus', desc: '+2 em testes de Diplomacia e Cura.' },
-        { id: 'd2', name: 'Escudo da Fé', desc: 'Reação (1 PM): Concede +2 em Defesa ou em uma Resistência.' }
+        { id: 'd2', name: 'Escudo da Fé', desc: 'Reação (1 PM): Concede +2 em Defesa.' },
+        { id: 'd3', name: 'Aura Espiritual', desc: 'Concede +5 de Resistência Espiritual.', resistanceBonus: { Espiritual: 5 } }
       ],
       Ínfero: [
-        { id: 'i1', name: 'Sangue Fervente', desc: 'Resistência a Fogo 5 e +2 em Intimidação.' },
-        { id: 'i2', name: 'Garras das Sombras', desc: 'Seus ataques desarmados causam dano cortante e somam +1 na margem de ameaça.' }
+        { id: 'i1', name: 'Sangue Fervente', desc: 'Resistência a Fogo 5 e +2 em Intimidação.', resistanceBonus: { Fogo: 5 } },
+        { id: 'i2', name: 'Garras das Sombras', desc: 'Ataques desarmados causam dano cortante.' }
       ]
     };
 
     function App() {
-      // Navegação por abas principais (Minhas Fichas, Regras Rápidas, O Mundo)
       const [activeTab, setActiveTab] = useState('saved');
-      
-      // Modo de visualização/edição no criador
       const [isCreatingNew, setIsCreatingNew] = useState(false);
       const [step, setStep] = useState(1);
-      
+      const STANDARD_ARRAY = [16, 14, 12, 10, 10, 8];
+      const [showRulesModal, setShowRulesModal] = useState(false); // Estado para controlar a visibilidade do modal de Regras
+      const [activeRulesTab, setActiveRulesTab] = useState('Combate'); // Pode iniciar em 'Combate' ou 'Ficha'
       const [savedCharacters, setSavedCharacters] = useState(() => {
         try {
           const local = localStorage.getItem('rpg_characters');
@@ -167,67 +329,106 @@
         } catch(e) { return []; }
       });
       const [editingId, setEditingId] = useState(null);
-
       const [name, setName] = useState('');
       const [selectedRace, setSelectedRace] = useState('Humano');
+      const [selectedSubRace, setSelectedSubRace] = useState('');
+      const [selectedOrigin, setSelectedOrigin] = useState('Aethelgard (Capital do Sol)');
       const [selectedClass, setSelectedClass] = useState('Guerreiro');
       const [selectedSubChoice, setSelectedSubChoice] = useState('');
-
-      const [attributes, setAttributes] = useState({ FOR: 10, DES: 10, CON: 10, INT: 10, SAB: 10, CAR: 10 });
-      
+      const [selectedClassCompetencies, setSelectedClassCompetencies] = useState([]);
+      const [attributes, setAttributes] = useState({ FOR: 16, DES: 14, CON: 12, INT: 10, SAB: 10, CAR: 8 });
       const [baseSkillCategories, setBaseSkillCategories] = useState({});
       const [skillCategories, setSkillCategories] = useState({});
-
       const [baseDefenseCategories, setBaseDefenseCategories] = useState({ Fortitude: 0, Reflexos: 0, Vontade: 0 });
       const [defenseCategories, setDefenseCategories] = useState({ Fortitude: 0, Reflexos: 0, Vontade: 0 });
-
       const [baseAttackCategories, setBaseAttackCategories] = useState({ Luta: 0, Pontaria: 0 });
       const [attackCategories, setAttackCategories] = useState({ Luta: 0, Pontaria: 0 });
-
+      const [boughtLanguages, setBoughtLanguages] = useState([]);
+      const [toolCategories, setToolCategories] = useState({});
       const [selectedPowers, setSelectedPowers] = useState({
         Geral: [], Arcano: [], Divino: [], Ínfero: []
       });
-      
+      const [equipment, setEquipment] = useState([]);
+      const [newItemName, setNewItemName] = useState('');
+      const [newItemCat, setNewItemCat] = useState('Arma');
       const [powerCategoryTab, setPowerCategoryTab] = useState('Geral');
-      const [hoveredRace, setHoveredRace] = useState(null);
-      const [hoveredClass, setHoveredClass] = useState(null);
       const [warningMessage, setWarningMessage] = useState(null);
 
-      // Estado do Mundo
+      // ABA O MUNDO
       const [worldSubTab, setWorldSubTab] = useState('overview');
-      const [isEditingLore, setIsEditingLore] = useState(false);
-      const [worldData, setWorldData] = useState({
-        overview: { title: "Visão Geral do Mundo", desc: "Um mundo de arquipélagos flutuantes e tempestades arcanas onde magias antigas regem o destino dos impérios." },
-        regioes: { title: "Regiões Principais", desc: "As terras conhecidas dividem-se em três grandes domínios. Visite também a aba de [link:facoes|Facções] para entender quem controla cada território." },
-        facoes: { title: "Facções e Guildas", desc: "Três grandes poderes moldam a política atual. Retorne à [link:overview|Visão Geral]." },
-        fatos: { title: "Segredos e Fatos", desc: "Informações que todo aventureiro deve saber antes de iniciar sua jornada." }
-      });
 
-      // Efeito ao trocar de classe: reseta competências e ajusta sub-escolhas
+      // Atualizações de Raça / Subraça
+      useEffect(() => {
+        const raceObj = RACES[selectedRace];
+        if (raceObj && raceObj.hasSubRaces && raceObj.subRaces.length > 0) {
+          if (!selectedSubRace || !raceObj.subRaces.some(sr => sr.id === selectedSubRace)) {
+            setSelectedSubRace(raceObj.subRaces[0].id);
+          }
+        } else {
+          setSelectedSubRace('');
+        }
+      }, [selectedRace]);
+
+      // Atualizações de Classe e Origem
       useEffect(() => {
         const cls = CLASSES[selectedClass];
-        if (cls) {
-          const bSkills = {};
-          SKILLS_LIST.forEach(s => { bSkills[s.name] = 0; });
-          cls.classCompetencies.forEach(sc => { bSkills[sc] = 1; });
-          setBaseSkillCategories(bSkills);
-          setSkillCategories({ ...bSkills });
-
-          const bDefs = cls.defensesConfig || { Fortitude: 0, Reflexos: 0, Vontade: 0 };
-          setBaseDefenseCategories({ ...bDefs });
-          setDefenseCategories({ ...bDefs });
-
-          const bAtks = cls.attacksConfig || { Luta: 0, Pontaria: 0 };
-          setBaseAttackCategories({ ...bAtks });
-          setAttackCategories({ ...bAtks });
-
+        const orig = ORIGINS[selectedOrigin];
+        if (cls && orig) {
           if (cls.subChoices && cls.subChoices.length > 0) {
-            setSelectedSubChoice(cls.subChoices[0].id);
+            if (!selectedSubChoice || !cls.subChoices.some(sc => sc.id === selectedSubChoice)) {
+              setSelectedSubChoice(cls.subChoices[0].id);
+            }
           } else {
             setSelectedSubChoice('');
           }
+
+          if (selectedClassCompetencies.length === 0 && cls.availableCompetencies) {
+            setSelectedClassCompetencies(cls.availableCompetencies.slice(0, cls.competencyChoiceCount));
+          }
+
+          const initialEquip = [
+            ...(cls.startingEquipment || []),
+            ...(orig.items || [])
+          ];
+          setEquipment(initialEquip);
         }
-      }, [selectedClass]);
+      }, [selectedClass, selectedOrigin]);
+
+      // Atualização dos Treinos Base (Perícias de Classe Escolhidas + Origem)
+      useEffect(() => {
+        const orig = ORIGINS[selectedOrigin];
+        const bSkills = {};
+        SKILLS_LIST.forEach(s => { bSkills[s.name] = 0; });
+        
+        selectedClassCompetencies.forEach(sc => {
+          bSkills[sc] = Math.min(5, (bSkills[sc] || 0) + 1);
+        });
+
+        if (orig && orig.skillBonus) {
+          bSkills[orig.skillBonus] = Math.min(5, (bSkills[orig.skillBonus] || 0) + 1);
+        }
+
+        setBaseSkillCategories(bSkills);
+
+        setSkillCategories(prev => {
+          const updated = { ...bSkills };
+          Object.keys(prev).forEach(k => {
+            if (prev[k] > updated[k]) updated[k] = prev[k];
+          });
+          return updated;
+        });
+
+        const cls = CLASSES[selectedClass];
+        if (cls) {
+          const bDefs = cls.defensesConfig || { Fortitude: 0, Reflexos: 0, Vontade: 0 };
+          setBaseDefenseCategories(bDefs);
+          setDefenseCategories(prev => ({ ...bDefs, ...prev }));
+
+          const bAtks = cls.attacksConfig || { Luta: 0, Pontaria: 0 };
+          setBaseAttackCategories(bAtks);
+          setAttackCategories(prev => ({ ...bAtks, ...prev }));
+        }
+      }, [selectedClassCompetencies, selectedOrigin, selectedClass]);
 
       useEffect(() => {
         try {
@@ -236,20 +437,55 @@
       }, [savedCharacters]);
 
       const calcMod = (val) => Math.floor((val - 10) / 2);
-      const getFinalAttr = (attr) => attributes[attr] + ((RACES[selectedRace]?.mods[attr] || 0) * 2);
+      
+      // Cálculo dos Atributos
+      const getFinalAttr = (attr) => attributes[attr];
+
       const getMod = (attr) => calcMod(getFinalAttr(attr));
       
+      const classKeyAttr = CLASSES[selectedClass]?.keyAttr || null;
+      const classKeyMod = classKeyAttr ? getMod(classKeyAttr) : null;
+
       const totalPV = (CLASSES[selectedClass]?.basePV || 0) + getMod('CON');
       const totalPM = (CLASSES[selectedClass]?.basePM || 0) + getMod('INT');
       
-      // Cálculo da Reserva Limite de Vagas para Poderes em cada Categoria
       const getPowerCategoryMaxSlots = (category) => {
         const raceSlots = RACES[selectedRace]?.powerSlotsBonus?.[category] || 0;
         const classSlots = CLASSES[selectedClass]?.powerSlotsBonus?.[category] || 0;
         return raceSlots + classSlots;
       };
 
-      // Cálculo dos Pontos de Inteligência Gastos
+      const calculateResistances = () => {
+        const res = { Cortante: 0, Impacto: 0, Fogo: 0, Frio: 0, Elétrico: 0, Espiritual: 0 };
+        const raceRes = RACES[selectedRace]?.resistances || {};
+        Object.keys(raceRes).forEach(k => { res[k] += raceRes[k]; });
+
+        const raceObj = RACES[selectedRace];
+        if (raceObj?.hasSubRaces) {
+          const subObj = raceObj.subRaces.find(sr => sr.id === selectedSubRace);
+          if (subObj && subObj.extraResistances) {
+            Object.keys(subObj.extraResistances).forEach(k => {
+              res[k] = (res[k] || 0) + subObj.extraResistances[k];
+            });
+          }
+        }
+
+        Object.keys(selectedPowers).forEach(cat => {
+          selectedPowers[cat].forEach(powId => {
+            const pow = POWERS_DATABASE[cat]?.find(p => p.id === powId);
+            if (pow && pow.resistanceBonus) {
+              Object.keys(pow.resistanceBonus).forEach(k => {
+                res[k] = (res[k] || 0) + pow.resistanceBonus[k];
+              });
+            }
+          });
+        });
+        return res;
+      };
+
+      const resistances = calculateResistances();
+
+      // PONTOS DE INTELIGÊNCIA GASTOS
       const intMod = getMod('INT');
       const intBonusPoints = Math.max(0, intMod);
 
@@ -265,23 +501,23 @@
       const spentSkills = calculateSpentPoints(skillCategories, baseSkillCategories);
       const spentDefs = calculateSpentPoints(defenseCategories, baseDefenseCategories);
       const spentAtks = calculateSpentPoints(attackCategories, baseAttackCategories);
-      const totalSpentPoints = spentSkills + spentDefs + spentAtks;
+      const spentLangs = boughtLanguages.length;
+      const spentTools = Object.values(toolCategories).reduce((acc, lvl) => acc + (lvl || 0), 0);
+
+      const totalSpentPoints = spentSkills + spentDefs + spentAtks + spentLangs + spentTools;
       const remainingIntPoints = intBonusPoints - totalSpentPoints;
 
-      // Seleção Controlada de Poderes baseada no Limite de Vagas
       const togglePower = (category, powerId) => {
         setWarningMessage(null);
         const list = selectedPowers[category] || [];
         const isSelected = list.includes(powerId);
 
         if (isSelected) {
-          // Desmarcar
           setSelectedPowers(prev => ({
             ...prev,
             [category]: list.filter(id => id !== powerId)
           }));
         } else {
-          // Marcar com validação de limite
           const maxSlots = getPowerCategoryMaxSlots(category);
           if (list.length >= maxSlots) {
             setWarningMessage(`Você só possui ${maxSlots} vaga(s) para Poderes ${category}s!`);
@@ -316,7 +552,46 @@
         setter(prev => ({ ...prev, [key]: newVal }));
       };
 
-      // Cálculos Finais de Defesas e Ataques
+      const toggleExtraLanguage = (lang) => {
+        setWarningMessage(null);
+        if (boughtLanguages.includes(lang)) {
+          setBoughtLanguages(prev => prev.filter(l => l !== lang));
+        } else {
+          if (remainingIntPoints < 1) {
+            setWarningMessage("Pontos de Inteligência insuficientes para aprender um novo idioma!");
+            return;
+          }
+          setBoughtLanguages(prev => [...prev, lang]);
+        }
+      };
+
+      const handleToolCategoryChange = (toolName, newCatLevel) => {
+        setWarningMessage(null);
+        const oldCatLevel = toolCategories[toolName] || 0;
+        if (newCatLevel < 0 || newCatLevel > 5) return;
+
+        const diffChange = newCatLevel - oldCatLevel;
+        if (diffChange > 0 && diffChange > remainingIntPoints) {
+          setWarningMessage(`Pontos de Inteligência insuficientes para elevar a categoria do "${toolName}"!`);
+          return;
+        }
+
+        setToolCategories(prev => ({ ...prev, [toolName]: newCatLevel }));
+      };
+
+      const toggleClassCompetency = (comp) => {
+        const limit = CLASSES[selectedClass]?.competencyChoiceCount || 2;
+        if (selectedClassCompetencies.includes(comp)) {
+          setSelectedClassCompetencies(prev => prev.filter(c => c !== comp));
+        } else {
+          if (selectedClassCompetencies.length >= limit) {
+            alert(`Você só pode escolher até ${limit} competências de classe!`);
+            return;
+          }
+          setSelectedClassCompetencies(prev => [...prev, comp]);
+        }
+      };
+
       const getDefenseValue = (type, attrName) => {
         const catLevel = defenseCategories[type] || 0;
         const profBonus = COMPETENCY_LEVELS[catLevel].bonus;
@@ -342,18 +617,65 @@
       const finalLuta = getAttackValue('Luta', 'FOR');
       const finalPontaria = getAttackValue('Pontaria', 'DES');
 
+      const addEquipmentItem = () => {
+        if (!newItemName.trim()) return;
+        setEquipment(prev => [...prev, { category: newItemCat, name: newItemName.trim() }]);
+        setNewItemName('');
+      };
+
+      const removeEquipmentItem = (index) => {
+        setEquipment(prev => prev.filter((_, i) => i !== index));
+      };
+
+      const handleExportData = () => {
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(savedCharacters, null, 2));
+        const downloadAnchor = document.createElement('a');
+        downloadAnchor.setAttribute("href", dataStr);
+        downloadAnchor.setAttribute("download", `fichas_rpg_backup_${new Date().toISOString().slice(0,10)}.json`);
+        document.body.appendChild(downloadAnchor);
+        downloadAnchor.click();
+        downloadAnchor.remove();
+      };
+
+      const handleImportData = (e) => {
+        const fileReader = new FileReader();
+        if (e.target.files && e.target.files[0]) {
+          fileReader.readAsText(e.target.files[0], "UTF-8");
+          fileReader.onload = (event) => {
+            try {
+              const imported = JSON.parse(event.target.result);
+              if (Array.isArray(imported)) {
+                setSavedCharacters(imported);
+                alert(`${imported.length} ficha(s) importada(s) com sucesso!`);
+              } else {
+                alert("O arquivo importado é inválido!");
+              }
+            } catch (err) {
+              alert("Erro ao ler arquivo JSON!");
+            }
+          };
+        }
+      };
+
       const handleSaveCharacter = () => {
         const charData = {
           id: editingId || Date.now().toString(),
           name: name || 'Personagem Sem Nome',
           selectedRace,
+          selectedSubRace,
+          selectedOrigin,
           selectedClass,
           selectedSubChoice,
+          selectedClassCompetencies,
           attributes,
           skillCategories,
           defenseCategories,
           attackCategories,
           selectedPowers,
+          equipment,
+          boughtLanguages,
+          toolCategories,
+          resistances,
           totalPV,
           totalPM,
           finalFortitude,
@@ -378,25 +700,37 @@
         setEditingId(char.id);
         setName(char.name);
         setSelectedRace(char.selectedRace);
+        setSelectedSubRace(char.selectedSubRace || '');
+        setSelectedOrigin(char.selectedOrigin || 'Aethelgard (Capital do Sol)');
         setSelectedClass(char.selectedClass);
         setSelectedSubChoice(char.selectedSubChoice || '');
+        setSelectedClassCompetencies(char.selectedClassCompetencies || []);
         setAttributes(char.attributes);
         setSkillCategories(char.skillCategories || {});
         setDefenseCategories(char.defenseCategories || { Fortitude: 0, Reflexos: 0, Vontade: 0 });
         setAttackCategories(char.attackCategories || { Luta: 0, Pontaria: 0 });
         setSelectedPowers(char.selectedPowers || { Geral: [], Arcano: [], Divino: [], Ínfero: [] });
+        setEquipment(char.equipment || []);
+        setBoughtLanguages(char.boughtLanguages || []);
+        setToolCategories(char.toolCategories || char.improvedTools || {});
         setIsCreatingNew(true);
-        setStep(6);
+        setStep(7);
       };
 
       const handleNewCharacter = () => {
         setEditingId(null);
         setName('');
         setSelectedRace('Humano');
+        setSelectedSubRace('');
+        setSelectedOrigin('Aethelgard (Capital do Sol)');
         setSelectedClass('Guerreiro');
         setSelectedSubChoice('');
+        setSelectedClassCompetencies([]);
         setAttributes({ FOR: 10, DES: 10, CON: 10, INT: 10, SAB: 10, CAR: 10 });
         setSelectedPowers({ Geral: [], Arcano: [], Divino: [], Ínfero: [] });
+        setEquipment([]);
+        setBoughtLanguages([]);
+        setToolCategories({});
         setIsCreatingNew(true);
         setStep(1);
       };
@@ -408,56 +742,29 @@
         }
       };
 
-      const totalPowersCount = Object.values(selectedPowers).reduce((acc, list) => acc + list.length, 0);
-
       const activeSubChoiceObj = CLASSES[selectedClass]?.subChoices?.find(sc => sc.id === selectedSubChoice);
+      const activeSubRaceObj = RACES[selectedRace]?.hasSubRaces ? RACES[selectedRace].subRaces.find(sr => sr.id === selectedSubRace) : null;
 
-      const renderFormattedText = (text) => {
-        if (!text) return null;
-        const regex = /\[link:(.*?)\|(.*?)\]/g;
-        const parts = [];
-        let lastIndex = 0;
-        let match;
 
-        while ((match = regex.exec(text)) !== null) {
-          const [fullMatch, targetTab, linkText] = match;
-          const matchIndex = match.index;
-          if (matchIndex > lastIndex) {
-            parts.push(text.substring(lastIndex, matchIndex));
-          }
-          parts.push(
-            <button
-              key={matchIndex}
-              onClick={() => setWorldSubTab(targetTab)}
-              className="text-red-400 font-bold underline hover:text-red-300 mx-1 bg-red-950/40 px-1.5 py-0.5 rounded border border-red-900/50 transition-all inline-flex items-center gap-1">
-              🔗 {linkText}
-            </button>
-          );
-          lastIndex = regex.lastIndex;
-        }
-        if (lastIndex < text.length) {
-          parts.push(text.substring(lastIndex));
-        }
-        return parts;
-      };
 
       return (
         <div className="min-h-screen flex flex-col max-w-5xl mx-auto p-3 sm:p-4 md:p-6">
-          {/* Header Responsivo */}
-          <header className="flex flex-col md:flex-row justify-between items-center pb-4 md:pb-6 mb-4 md:mb-6 border-b border-slate-800 gap-4">
+          <header className="flex flex-col md:flex-row justify-between items-center pb-4 md:pb-6 mb-4 md:mb-6 border-b border-slate-800 gap-4 no-print">
             <div>
               <h1 className="text-2xl sm:text-3xl font-extrabold text-red-500 flex items-center gap-2">
-                🛡️ HUB de RPG & Criador
+                🛡️ HUB T20 RPG
               </h1>
-              <p className="text-slate-400 text-xs sm:text-sm">Gerencie suas fichas e explore o mundo da campanha</p>
+              <p className="text-slate-400 text-xs sm:text-sm">Sistema de RPG com Regras Completas e Fichas Detalhadas</p>
             </div>
             
             <nav className="flex flex-wrap w-full md:w-auto justify-center gap-2 bg-slate-800 p-1.5 rounded-xl">
               <button onClick={() => { setActiveTab('saved'); setIsCreatingNew(false); }} className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all ${activeTab === 'saved' && !isCreatingNew ? 'bg-red-600 text-white' : 'text-slate-400 hover:text-white'}`}>
                 📋 Minhas Fichas ({savedCharacters.length})
               </button>
-              <button onClick={() => setActiveTab('rules')} className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all ${activeTab === 'rules' ? 'bg-red-600 text-white' : 'text-slate-400 hover:text-white'}`}>
-                📖 Regras Rápidas
+              <button
+	      onClick={() => setShowRulesModal(true)}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition-all border border-slate-700">
+                📖 Regras
               </button>
               <button onClick={() => setActiveTab('world')} className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all ${activeTab === 'world' ? 'bg-red-600 text-white' : 'text-slate-400 hover:text-white'}`}>
                 🌍 O Mundo
@@ -465,20 +772,28 @@
             </nav>
           </header>
 
-          {/* ABA PRINCIPAL 1: MINHAS FICHAS (E CRIADOR EMBUTIDO) */}
           {activeTab === 'saved' && (
             <div>
               {!isCreatingNew ? (
-                /* Lista de Personagens Salvos */
                 <div className="t20-card p-4 sm:p-6 space-y-4">
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-slate-800 pb-4 gap-3">
                     <div>
                       <h2 className="text-xl sm:text-2xl font-black text-red-500">Minhas Fichas de Personagem</h2>
-                      <p className="text-xs text-slate-400">Crie, edite e gerencie múltiplos personagens salvos no navegador</p>
+                      <p className="text-xs text-slate-400">Crie, edite e gerencie todas as suas fichas</p>
                     </div>
-                    <button onClick={handleNewCharacter} className="t20-btn-primary w-full sm:w-auto px-4 py-2.5 rounded-lg text-sm font-bold flex items-center justify-center gap-2">
-                      <span>➕</span> Criar Novo Personagem
-                    </button>
+
+                    <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+                      <button onClick={handleExportData} className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-lg border border-slate-700 transition-all flex items-center gap-1.5">
+                        📤 Exportar Fichas
+                      </button>
+                      <label className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-lg border border-slate-700 transition-all cursor-pointer flex items-center gap-1.5">
+                        📥 Importar JSON
+                        <input type="file" accept=".json" onChange={handleImportData} className="hidden" />
+                      </label>
+                      <button onClick={handleNewCharacter} className="t20-btn-primary px-4 py-2 rounded-lg text-xs sm:text-sm font-bold flex items-center justify-center gap-2">
+                        ➕ Criar Novo
+                      </button>
+                    </div>
                   </div>
 
                   {savedCharacters.length === 0 ? (
@@ -495,8 +810,7 @@
                           <div>
                             <h3 className="font-bold text-slate-100 text-lg">{char.name}</h3>
                             <p className="text-xs text-slate-400">
-                              {char.selectedRace} - {char.selectedClass}
-                              {char.selectedSubChoice ? ` (${char.selectedSubChoice})` : ''} (Nível 1)
+                              {char.selectedRace} {char.selectedSubRace ? `(${char.selectedSubRace})` : ''} - {char.selectedClass}
                             </p>
                             <div className="text-xs text-slate-500 mt-2 flex gap-4">
                               <span className="text-red-400 font-semibold">PV: {char.totalPV}</span>
@@ -517,9 +831,9 @@
                   )}
                 </div>
               ) : (
-                /* ESTRUTURA DO CRIADOR DE FICHA (FLUXO DE ETAPAS) */
+                /* PASSO A PASSO DO CRIADOR */
                 <div className="space-y-4">
-                  <div className="flex justify-between items-center bg-slate-900 p-3 rounded-lg border border-slate-800">
+                  <div className="flex justify-between items-center bg-slate-900 p-3 rounded-lg border border-slate-800 no-print">
                     <span className="text-xs font-bold text-slate-300">
                       {editingId ? `Editando Ficha: ${name || 'Sem nome'}` : 'Criando Nova Ficha'}
                     </span>
@@ -530,9 +844,9 @@
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div className="md:col-span-2 space-y-4">
-                      {/* Indicador de Passos Responsivo */}
-                      <div className="flex overflow-x-auto gap-1 bg-slate-800/60 p-2 rounded-lg border border-slate-700 custom-scrollbar">
-                        {['1. Raça', '2. Classe', '3. Atributos', '4. Poderes', '5. Perícias', '6. Resumo'].map((lbl, idx) => (
+                      {/* Passos */}
+                      <div className="flex overflow-x-auto gap-1 bg-slate-800/60 p-2 rounded-lg border border-slate-700 custom-scrollbar no-print">
+                        {['1. Raça', '2. Origem', '3. Classe', '4. Atributos', '5. Poderes', '6. Perícias & Treinos', '7. Resumo'].map((lbl, idx) => (
                           <button 
                             key={idx} 
                             onClick={() => setStep(idx + 1)}
@@ -542,70 +856,185 @@
                         ))}
                       </div>
 
-                      {/* Passo 1: Raça */}
-                      {step === 1 && (
+                      {/* Passo 1: Raça + Suporte a Subraças */}
+{step === 1 && (
+  <div className="t20-card p-4 sm:p-5 space-y-4">
+    <h2 className="text-xl font-bold text-slate-100">1. Escolha sua Raça</h2>
+    
+    {/* Botões de Raça Base (sem onMouseEnter / onMouseLeave) */}
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      {Object.keys(RACES).map((r) => (
+        <button
+          key={r}
+          onClick={() => setSelectedRace(r)}
+          className={`p-3 rounded-lg border text-left transition-all ${
+            selectedRace === r 
+              ? 'border-red-500 bg-red-950/30 text-white shadow-lg' 
+              : 'border-slate-700 bg-slate-900/40 text-slate-400 hover:border-slate-500'
+          }`}>
+          <div className="font-bold text-sm sm:text-base">{r}</div>
+        </button>
+      ))}
+    </div>
+
+    {/* 1. HABILIDADES BÁSICAS DA RAÇA SELECIONADA (Ficam no topo) */}
+    {selectedRace && RACES[selectedRace] && (
+      <div className="p-4 bg-slate-900 rounded-lg border border-red-900/50 space-y-3 text-xs">
+        <div className="font-bold text-red-400 text-sm">
+          🛡️ Características Básicas: {selectedRace}
+        </div>
+        <p className="text-slate-300">{RACES[selectedRace].desc}</p>
+        
+        {/* Lista de Traços Principais */}
+        <div className="space-y-1.5">
+          {RACES[selectedRace].traits.map((trait, i) => (
+            <div key={i} className="bg-slate-800/80 p-2 rounded border border-slate-700/60">
+              <span className="font-bold text-amber-400">{trait.name}: </span>
+              <span className="text-slate-300">{trait.desc}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    )}
+
+    {/* 2. SUBRAÇAS E SUAS HABILIDADES EXCLUSIVAS (Aparecem em baixo, se existirem) */}
+    {RACES[selectedRace]?.hasSubRaces && (
+      <div className="p-4 bg-slate-900/90 rounded-xl border border-amber-900/60 space-y-3">
+        <div className="text-xs font-bold text-amber-400 uppercase tracking-wide">
+          🧬 Escolha de {RACES[selectedRace].subRaceLabel}:
+        </div>
+        
+        {/* Botões para Selecionar a Subraça */}
+        <div className="grid grid-cols-2 gap-2">
+          {RACES[selectedRace].subRaces.map((sr) => (
+            <button
+              key={sr.id}
+              onClick={() => setSelectedSubRace(sr.id)}
+              className={`py-2 px-3 rounded-lg font-bold text-xs border transition-all text-left ${
+                selectedSubRace === sr.id 
+                  ? 'bg-amber-600 border-amber-400 text-white shadow-md' 
+                  : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-white'
+              }`}>
+              <div>{sr.name}</div>
+            </button>
+          ))}
+        </div>
+
+        {/* Detalhes da Subraça Selecionada */}
+        {activeSubRaceObj && (
+          <div className="bg-slate-950/80 p-3 rounded-lg border border-amber-800/80 space-y-2 text-xs">
+            <div className="font-bold text-amber-300 text-sm">
+              ✨ Bônus de {activeSubRaceObj.name}
+            </div>
+            <p className="text-slate-300">{activeSubRaceObj.desc}</p>
+            <div className="bg-slate-900 p-2 rounded border border-slate-800">
+              <span className="font-bold text-amber-400">{activeSubRaceObj.extraTrait.name}: </span>
+              <span className="text-slate-300">{activeSubRaceObj.extraTrait.desc}</span>
+            </div>
+          </div>
+        )}
+      </div>
+    )}
+
+    <button 
+      onClick={() => setStep(2)} 
+      className="t20-btn-primary w-full py-2.5 rounded-lg font-bold text-sm">
+      Próximo: Origem ➔
+    </button>
+  </div>
+)}
+
+                      {/* Passo 2: Origem */}
+                      {step === 2 && (
                         <div className="t20-card p-4 sm:p-5 space-y-4">
                           <div>
-                            <h2 className="text-xl font-bold text-slate-100">Escolha sua Raça</h2>
-                            <p className="text-xs text-slate-400">Passe o mouse (ou toque) sobre uma raça para visualizar suas habilidades.</p>
+                            <h2 className="text-xl font-bold text-slate-100">2. Escolha sua Origem (Capitais do Mundo)</h2>
+                            <p className="text-xs text-slate-400">Cada Origem concede +1 Categoria em uma Perícia e Equipamento Inicial específico.</p>
                           </div>
 
-                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                            {Object.keys(RACES).map((r) => (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-72 overflow-y-auto custom-scrollbar pr-1">
+                            {Object.keys(ORIGINS).map((origKey) => (
                               <button
-                                key={r}
-                                onClick={() => setSelectedRace(r)}
-                                onMouseEnter={() => setHoveredRace(r)}
-                                className={`p-3 rounded-lg border text-left transition-all ${selectedRace === r ? 'border-red-500 bg-red-950/30 text-white shadow-lg' : 'border-slate-700 bg-slate-900/40 text-slate-400 hover:border-slate-500'}`}>
-                                <div className="font-bold text-sm sm:text-base">{r}</div>
+                                key={origKey}
+                                onClick={() => setSelectedOrigin(origKey)}
+                                className={`p-3 rounded-lg border text-left transition-all ${selectedOrigin === origKey ? 'border-amber-500 bg-amber-950/20 text-white shadow' : 'border-slate-800 bg-slate-900/50 text-slate-400 hover:border-slate-700'}`}>
+                                <div className="font-bold text-xs sm:text-sm text-slate-200">{origKey}</div>
+                                <div className="text-[11px] text-amber-400 mt-0.5"> Perícia: +1 em {ORIGINS[origKey].skillBonus}</div>
                               </button>
                             ))}
                           </div>
 
-                          {hoveredRace || selectedRace ? (
-                            <div className="p-4 bg-slate-900 rounded-lg border border-red-900/50 space-y-3">
-                              <div className="flex justify-between items-center border-b border-slate-800 pb-2">
-                                <h3 className="font-bold text-red-400 text-base sm:text-lg">{hoveredRace || selectedRace}</h3>
-                                <span className="text-xs text-slate-500">Habilidades Raciais</span>
-                              </div>
-                              <p className="text-xs text-slate-300 italic">{RACES[hoveredRace || selectedRace].desc}</p>
-                              <div className="space-y-2 pt-1">
-                                {RACES[hoveredRace || selectedRace].traits.map((trait, i) => (
-                                  <div key={i} className="bg-slate-800/80 p-2 rounded border border-slate-700/60 text-xs">
-                                    <span className="font-bold text-amber-400">{trait.name}: </span>
-                                    <span className="text-slate-300">{trait.desc}</span>
-                                  </div>
-                                ))}
-                              </div>
+                          <div className="p-3 bg-slate-900 rounded-lg border border-slate-800 text-xs space-y-1">
+                            <span className="font-bold text-slate-200">Detalhes de {selectedOrigin}:</span>
+                            <p className="text-slate-400">{ORIGINS[selectedOrigin].desc}</p>
+                            <div className="text-emerald-400 font-semibold pt-1">
+                              🎁 Itens Iniciais concedidos: {ORIGINS[selectedOrigin].items.map(i => i.name).join(', ')}
                             </div>
-                          ) : null}
+                          </div>
 
-                          <button onClick={() => setStep(2)} className="t20-btn-primary w-full py-2.5 rounded-lg font-bold text-sm">Próximo: Escolher Classe ➔</button>
+                          <div className="flex gap-3">
+                            <button onClick={() => setStep(1)} className="w-1/3 py-2.5 bg-slate-800 text-slate-300 rounded-lg font-bold text-xs sm:text-sm">⬅ Voltar</button>
+                            <button onClick={() => setStep(3)} className="t20-btn-primary w-2/3 py-2.5 rounded-lg font-bold text-xs sm:text-sm">Próximo: Classe ➔</button>
+                          </div>
                         </div>
                       )}
 
-                      {/* Passo 2: Classe & Sub-escolhas */}
-                      {step === 2 && (
+                      {/* Passo 3: Classe com Seleção de Competências + Sub-escolha */}
+                      {step === 3 && (
                         <div className="t20-card p-4 sm:p-5 space-y-4">
                           <div>
-                            <h2 className="text-xl font-bold text-slate-100">Escolha sua Classe</h2>
-                            <p className="text-xs text-slate-400">Passe o mouse (ou toque) para visualizar os detalhes da classe.</p>
+                            <h2 className="text-xl font-bold text-slate-100">3. Escolha sua Classe</h2>
+                            <p className="text-xs text-slate-400">Escolha sua classe e defina as competências treinas.</p>
                           </div>
 
-                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                             {Object.keys(CLASSES).map((c) => (
                               <button
                                 key={c}
                                 onClick={() => setSelectedClass(c)}
-                                onMouseEnter={() => setHoveredClass(c)}
                                 className={`p-3 rounded-lg border text-left transition-all ${selectedClass === c ? 'border-red-500 bg-red-950/30 text-white shadow-lg' : 'border-slate-700 bg-slate-900/40 text-slate-400 hover:border-slate-500'}`}>
                                 <div className="font-bold text-sm sm:text-base">{c}</div>
-                                <div className="text-[11px] text-slate-500">PV: {CLASSES[c].basePV} | PM: {CLASSES[c].basePM}</div>
+                                <div className="text-[11px] font-bold mt-1">
+                                  {CLASSES[c].keyAttr ? (
+                                    <span className="text-amber-400">Mod Chave: {CLASSES[c].keyAttr}</span>
+                                  ) : (
+                                    <span className="text-slate-500">Classe Marcial</span>
+                                  )}
+                                </div>
                               </button>
                             ))}
                           </div>
 
-                          {/* SUB-ESCOLHA DA CLASSE (Exemplo: Elemento do Feiticeiro) */}
+                          {/* SELEÇÃO DINÂMICA DE COMPETÊNCIAS DA CLASSE */}
+                          {CLASSES[selectedClass]?.availableCompetencies && (
+                            <div className="p-4 bg-slate-950/80 rounded-xl border border-slate-800 space-y-2">
+                              <div className="flex justify-between items-center">
+                                <span className="text-xs font-bold text-amber-400 uppercase">
+                                  📋 Escolha {CLASSES[selectedClass].competencyChoiceCount} Competências de Classe:
+                                </span>
+                                <span className="text-xs text-slate-400">
+                                  Selecionadas: <strong className="text-amber-400">{selectedClassCompetencies.length} / {CLASSES[selectedClass].competencyChoiceCount}</strong>
+                                </span>
+                              </div>
+                              <div className="flex flex-wrap gap-2 pt-1">
+                                {CLASSES[selectedClass].availableCompetencies.map(comp => {
+                                  const isSelected = selectedClassCompetencies.includes(comp);
+                                  return (
+                                    <button
+                                      key={comp}
+                                      onClick={() => toggleClassCompetency(comp)}
+                                      className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${
+                                        isSelected ? 'bg-amber-600 border-amber-400 text-white shadow' : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-white'
+                                      }`}>
+                                      {comp} {isSelected ? '✓' : ''}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* SUB-ESCOLHA DA CLASSE */}
                           {CLASSES[selectedClass]?.subChoices && (
                             <div className="p-4 bg-slate-900/90 rounded-xl border border-blue-900/60 space-y-3">
                               <div className="text-xs font-bold text-blue-400 uppercase tracking-wide">
@@ -622,103 +1051,141 @@
                                 ))}
                               </div>
                               {activeSubChoiceObj && (
-                                <div className="bg-slate-950/60 p-2.5 rounded-lg border border-slate-800 text-xs text-slate-300">
-                                  <span className="font-bold text-amber-400">Ataque Básico ({activeSubChoiceObj.attackName}): </span>
-                                  {activeSubChoiceObj.attackDesc}
+                                <div className="bg-slate-950/80 p-3 rounded-lg border border-blue-800/80 space-y-1 text-xs">
+                                  <div className="font-bold text-amber-400 text-sm">
+                                    ⚡ Ataque Básico ({activeSubChoiceObj.attackName})
+                                  </div>
+                                  <p className="text-slate-300 leading-relaxed">
+                                    {activeSubChoiceObj.attackDesc}
+                                  </p>
                                 </div>
                               )}
                             </div>
                           )}
 
-                          {hoveredClass || selectedClass ? (
-                            <div className="p-4 bg-slate-900 rounded-lg border border-red-900/50 space-y-3">
-                              <div className="flex justify-between items-center border-b border-slate-800 pb-2">
-                                <h3 className="font-bold text-red-400 text-base sm:text-lg">{hoveredClass || selectedClass}</h3>
-                                <span className="text-xs text-slate-500">Recursos de Classe</span>
-                              </div>
-                              <div className="text-xs text-slate-300">
-                                <strong>Competências da Classe (+1 Categoria):</strong> {CLASSES[hoveredClass || selectedClass].classCompetencies.join(', ')}
-                              </div>
-                              <div className="space-y-2 pt-1">
-                                {CLASSES[hoveredClass || selectedClass].abilities.map((ab, i) => (
-                                  <div key={i} className="bg-slate-800/80 p-2 rounded border border-slate-700/60 text-xs">
-                                    <span className="font-bold text-blue-400">{ab.name}: </span>
-                                    <span className="text-slate-300">{ab.desc}</span>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          ) : null}
+                          {/* Detalhes da Classe Selecionada */}
+{selectedClass && CLASSES[selectedClass] && (
+  <div className="p-4 bg-slate-900 rounded-lg border border-red-900/50 space-y-3 text-xs">
+    <div className="font-bold text-red-400 text-base">{selectedClass}</div>
+    {CLASSES[selectedClass].abilities.map((ab, i) => (
+      <div key={i} className="bg-slate-800/80 p-2 rounded border border-slate-700/60">
+        <span className="font-bold text-blue-400">{ab.name}: </span>
+        <span className="text-slate-300">{ab.desc}</span>
+      </div>
+    ))}
+  </div>
+)}
 
-                          <div className="flex gap-3">
-                            <button onClick={() => setStep(1)} className="w-1/3 py-2.5 bg-slate-800 text-slate-300 rounded-lg font-bold text-xs sm:text-sm">⬅ Voltar</button>
-                            <button onClick={() => setStep(3)} className="t20-btn-primary w-2/3 py-2.5 rounded-lg font-bold text-xs sm:text-sm">Próximo: Atributos ➔</button>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Passo 3: Atributos */}
-                      {step === 3 && (
-                        <div className="t20-card p-4 sm:p-5 space-y-4">
-                          <h2 className="text-xl font-bold text-slate-100">Ajuste de Atributos</h2>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            {Object.keys(attributes).map((attr) => (
-                              <div key={attr} className="p-3 bg-slate-900/80 rounded-lg border border-slate-800 flex items-center justify-between">
-                                <div>
-                                  <span className="font-bold text-slate-200">{attr}</span>
-                                  <span className="text-xs text-slate-500 ml-2">(Mod: {getMod(attr) >= 0 ? `+${getMod(attr)}` : getMod(attr)})</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <button onClick={() => setAttributes(p => ({...p, [attr]: Math.max(8, p[attr] - 1)}))} className="w-7 h-7 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded">-</button>
-                                  <span className="w-8 text-center font-bold text-white text-sm">{getFinalAttr(attr)}</span>
-                                  <button onClick={() => setAttributes(p => ({...p, [attr]: Math.min(18, p[attr] + 1)}))} className="w-7 h-7 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded">+</button>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
                           <div className="flex gap-3">
                             <button onClick={() => setStep(2)} className="w-1/3 py-2.5 bg-slate-800 text-slate-300 rounded-lg font-bold text-xs sm:text-sm">⬅ Voltar</button>
-                            <button onClick={() => setStep(4)} className="t20-btn-primary w-2/3 py-2.5 rounded-lg font-bold text-xs sm:text-sm">Próximo: Poderes ➔</button>
+                            <button onClick={() => setStep(4)} className="t20-btn-primary w-2/3 py-2.5 rounded-lg font-bold text-xs sm:text-sm">Próximo: Atributos ➔</button>
                           </div>
                         </div>
                       )}
 
-                      {/* Passo 4: Poderes com Controle de Reserva/Limites */}
-                      {step === 4 && (
+                      {/* Passo 4: Atributos */}
+{/* Passo 4: Atributos com Valores Fixos */}
+{step === 4 && (
+  <div className="t20-card p-4 sm:p-5 space-y-4">
+    <div>
+      <h2 className="text-xl font-bold text-slate-100">4. Atribuição de Atributos</h2>
+      <p className="text-xs text-slate-400">
+        Distribua os valores fixos: <strong className="text-amber-400">16, 14, 12, 10, 10 e 8</strong> entre seus 6 atributos.
+      </p>
+    </div>
+
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      {Object.keys(attributes).map((attr) => {
+        const currentValue = Number(attributes[attr]);
+        const isKey = attr === classKeyAttr;
+
+        // Lista de todos os valores atribuídos nos OUTROS 5 atributos (garantindo conversão para Number)
+        const usedValuesInOthers = Object.entries(attributes)
+          .filter(([k]) => k !== attr)
+          .map(([_, v]) => Number(v));
+
+        return (
+          <div 
+            key={attr} 
+            className={`p-3 rounded-lg border flex items-center justify-between gap-3 ${
+              isKey ? 'border-amber-500/60 bg-amber-950/20' : 'border-slate-800 bg-slate-900/80'
+            }`}>
+            <div className="min-w-0 flex-1">
+              <div className="font-bold text-slate-200 flex items-center gap-1.5">
+                {attr}
+                {isKey && (
+                  <span className="text-[10px] bg-amber-500 text-slate-950 px-1.5 py-0.5 rounded font-black shrink-0">
+                    MOD CHAVE
+                  </span>
+                )}
+              </div>
+              <div className="text-xs text-slate-400 mt-0.5">
+                Modificador: <strong className="text-amber-400">{getMod(attr) >= 0 ? `+${getMod(attr)}` : getMod(attr)}</strong>
+              </div>
+            </div>
+
+            {/* Largura fixa ajustada (w-24 / min-w-[96px]) para impedir o crescimento gigante das caixas */}
+            <select
+              value={currentValue}
+              onChange={(e) => {
+                const newVal = Number(e.target.value);
+                setAttributes(prev => ({ ...prev, [attr]: newVal }));
+              }}
+              className="w-24 shrink-0 bg-slate-800 text-white font-bold text-sm border border-slate-700 rounded-lg p-2 text-center focus:outline-none focus:border-amber-500 cursor-pointer">
+              {STANDARD_ARRAY.map((val, idx) => {
+                // Quantas vezes este valor específico existe na regra global (ex: '10' existe 2x)
+                const totalAllowedInArray = STANDARD_ARRAY.filter(v => v === val).length;
+
+                // Quantas vezes este valor específico já foi atribuído nos OUTROS atributos
+                const countUsedInOthers = usedValuesInOthers.filter(v => v === val).length;
+
+                // Bloqueia a opção se o número de usos nos outros já atingiu o limite total permitido
+                const isDisabled = countUsedInOthers >= totalAllowedInArray && currentValue !== val;
+
+                return (
+                  <option key={`${val}-${idx}`} value={val} disabled={isDisabled} className={isDisabled ? 'text-slate-500' : 'text-white'}>
+                    {val} {isDisabled ? '(Indisponível)' : ''}
+                  </option>
+                );
+              })}
+            </select>
+          </div>
+        );
+      })}
+    </div>
+
+    <div className="flex gap-3 pt-2">
+      <button onClick={() => setStep(3)} className="w-1/3 py-2.5 bg-slate-800 text-slate-300 rounded-lg font-bold text-xs sm:text-sm">
+        ⬅ Voltar
+      </button>
+      <button onClick={() => setStep(5)} className="t20-btn-primary w-2/3 py-2.5 rounded-lg font-bold text-xs sm:text-sm">
+        Próximo: Poderes ➔
+      </button>
+    </div>
+  </div>
+)}
+
+                      {/* Passo 5: Poderes */}
+                      {step === 5 && (
                         <div className="t20-card p-4 sm:p-5 space-y-4">
-                          <div>
-                            <h2 className="text-xl font-bold text-slate-100">Seleção de Poderes</h2>
-                            <p className="text-xs text-slate-400">Suas vagas para poderes são liberadas por sua Raça e Classe.</p>
-                          </div>
-
+                          <h2 className="text-xl font-bold text-slate-100">5. Seleção de Poderes</h2>
                           {warningMessage && (
-                            <div className="p-3 bg-red-950/90 border border-red-700 text-red-300 text-xs rounded-lg animate-pulse">
-                              ⚠️ {warningMessage}
-                            </div>
+                            <div className="p-3 bg-red-950/90 border border-red-700 text-red-300 text-xs rounded-lg animate-pulse">⚠️ {warningMessage}</div>
                           )}
-
-                          {/* Sub-abas das Categorias com Reserva Visível */}
                           <div className="flex flex-wrap gap-2 bg-slate-900 p-2 rounded-lg border border-slate-800">
-                            {[
-                              { id: 'Geral', label: '⚔️ Gerais' },
-                              { id: 'Arcano', label: '🔮 Arcanos' },
-                              { id: 'Divino', label: '✨ Divinos' },
-                              { id: 'Ínfero', label: '🔥 Ínferos' }
-                            ].map((cat) => {
-                              const maxSlots = getPowerCategoryMaxSlots(cat.id);
-                              const selectedCount = selectedPowers[cat.id]?.length || 0;
+                            {['Geral', 'Arcano', 'Divino', 'Ínfero'].map((cat) => {
+                              const maxSlots = getPowerCategoryMaxSlots(cat);
+                              const selectedCount = selectedPowers[cat]?.length || 0;
                               return (
                                 <button
-                                  key={cat.id}
-                                  onClick={() => setPowerCategoryTab(cat.id)}
-                                  className={`px-3 py-1.5 rounded text-xs font-bold transition-all ${powerCategoryTab === cat.id ? 'bg-red-600 text-white' : 'text-slate-400 hover:text-white bg-slate-800/60'}`}>
-                                  {cat.label} ({selectedCount}/{maxSlots})
+                                  key={cat}
+                                  onClick={() => setPowerCategoryTab(cat)}
+                                  className={`px-3 py-1.5 rounded text-xs font-bold transition-all ${powerCategoryTab === cat ? 'bg-red-600 text-white' : 'text-slate-400 hover:text-white bg-slate-800/60'}`}>
+                                  {cat} ({selectedCount}/{maxSlots})
                                 </button>
                               );
                             })}
                           </div>
-
-                          {/* Lista de Poderes da Categoria */}
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             {POWERS_DATABASE[powerCategoryTab]?.map((power) => {
                               const isSelected = selectedPowers[powerCategoryTab]?.includes(power.id);
@@ -727,30 +1194,26 @@
                                   key={power.id}
                                   onClick={() => togglePower(powerCategoryTab, power.id)}
                                   className={`p-3 rounded-lg border cursor-pointer transition-all ${isSelected ? 'border-amber-500 bg-amber-950/20 text-white shadow' : 'border-slate-800 bg-slate-900/40 text-slate-400 hover:border-slate-700'}`}>
-                                  <div className="flex justify-between items-center mb-1">
-                                    <span className="font-bold text-slate-200 text-xs sm:text-sm">{power.name}</span>
-                                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 font-semibold text-amber-400">{powerCategoryTab}</span>
-                                  </div>
-                                  <p className="text-xs text-slate-400">{power.desc}</p>
+                                  <div className="font-bold text-slate-200 text-xs sm:text-sm">{power.name}</div>
+                                  <p className="text-xs text-slate-400 mt-1">{power.desc}</p>
                                 </div>
                               );
                             })}
                           </div>
-
                           <div className="flex gap-3">
-                            <button onClick={() => setStep(3)} className="w-1/3 py-2.5 bg-slate-800 text-slate-300 rounded-lg font-bold text-xs sm:text-sm">⬅ Voltar</button>
-                            <button onClick={() => setStep(5)} className="t20-btn-primary w-2/3 py-2.5 rounded-lg font-bold text-xs sm:text-sm">Próximo: Perícias ➔</button>
+                            <button onClick={() => setStep(4)} className="w-1/3 py-2.5 bg-slate-800 text-slate-300 rounded-lg font-bold text-xs sm:text-sm">⬅ Voltar</button>
+                            <button onClick={() => setStep(6)} className="t20-btn-primary w-2/3 py-2.5 rounded-lg font-bold text-xs sm:text-sm">Próximo: Perícias & Treinos ➔</button>
                           </div>
                         </div>
                       )}
 
-                      {/* Passo 5: Perícias */}
-                      {step === 5 && (
+                      {/* Passo 6: Perícias + Defesas/Ataques + Idiomas + Kits */}
+                      {step === 6 && (
                         <div className="t20-card p-4 sm:p-5 space-y-4">
                           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-slate-800 pb-3 gap-2">
                             <div>
-                              <h2 className="text-xl font-bold text-slate-100">Distribuição de Categorias</h2>
-                              <p className="text-xs text-slate-400">Gaste seus pontos de INT para subir categorias em Perícias, Defesas e Ataques.</p>
+                              <h2 className="text-xl font-bold text-slate-100">6. Distribuição de Pontos de Inteligência</h2>
+                              <p className="text-xs text-slate-400">Gaste seus pontos de INT para subir categorias em Perícias, Defesas, Ataques, Idiomas Extras e Kits.</p>
                             </div>
                             <div className="bg-slate-900 px-3 py-1.5 rounded border border-slate-800 text-xs">
                               Pontos Restantes: <strong className="text-amber-400 text-sm">{remainingIntPoints}</strong> / {intBonusPoints}
@@ -763,9 +1226,9 @@
                             </div>
                           )}
 
-                          {/* Defesas e Ataques */}
+                          {/* DEFESAS E ATAQUES */}
                           <div className="space-y-2">
-                            <div className="text-xs font-bold text-cyan-400 uppercase">Defesas e Ataques:</div>
+                            <div className="text-xs font-bold text-cyan-400 uppercase">🛡️ Defesas e Ataques (Categorias de Treino):</div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                               {Object.keys(defenseCategories).map(defKey => {
                                 const curCat = defenseCategories[defKey];
@@ -814,22 +1277,21 @@
                             </div>
                           </div>
 
-                          {/* Lista de Perícias */}
-                          <div className="space-y-2 pt-2">
-                            <div className="text-xs font-bold text-slate-300 uppercase">Perícias:</div>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-64 overflow-y-auto pr-1 custom-scrollbar">
+                          {/* PERÍCIAS (SEM SCROLLBAR) */}
+                          <div className="space-y-2 pt-1">
+                            <div className="text-xs font-bold text-slate-300 uppercase">📊 Perícias (Sem rolagem):</div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                               {SKILLS_LIST.map((skill) => {
                                 const currentCat = skillCategories[skill.name] || 0;
                                 const baseCat = baseSkillCategories[skill.name] || 0;
                                 const attrMod = getMod(skill.attr);
-                                const profBonus = COMPETENCY_LEVELS[currentCat].bonus;
-                                const totalBonus = attrMod + profBonus;
+                                const totalBonus = attrMod + COMPETENCY_LEVELS[currentCat].bonus;
 
                                 return (
-                                  <div key={skill.name} className="p-2.5 bg-slate-900/60 rounded border border-slate-800 flex items-center justify-between">
+                                  <div key={skill.name} className="p-2 bg-slate-900/60 rounded border border-slate-800 flex items-center justify-between">
                                     <div>
                                       <div className="text-xs font-bold text-slate-200">{skill.name} <span className="text-[10px] text-slate-500">({skill.attr})</span></div>
-                                      <div className="text-[10px] text-amber-400 font-semibold">{COMPETENCY_LEVELS[currentCat].name} (+{profBonus})</div>
+                                      <div className="text-[10px] text-amber-400">{COMPETENCY_LEVELS[currentCat].name}</div>
                                     </div>
                                     <div className="flex items-center gap-2">
                                       <select 
@@ -852,108 +1314,187 @@
                             </div>
                           </div>
 
+                          {/* IDIOMAS EXTRAS */}
+                          <div className="space-y-2 pt-2 border-t border-slate-800">
+                            <div className="flex justify-between items-center">
+                              <span className="text-xs font-bold text-purple-400 uppercase">🗣️ Aprendizado de Idiomas Extras (1 Ponto de INT por Idioma):</span>
+                              <span className="text-[11px] text-slate-400">Começa grátis com: <strong className="text-slate-200">Comum</strong></span>
+                            </div>
+                            <div className="flex flex-wrap gap-1.5 bg-slate-900 p-2.5 rounded-lg border border-slate-800">
+                              {EXTRA_LANGUAGES.map(lang => {
+                                const isBought = boughtLanguages.includes(lang);
+                                return (
+                                  <button
+                                    key={lang}
+                                    onClick={() => toggleExtraLanguage(lang)}
+                                    className={`px-2.5 py-1 rounded text-xs font-bold border transition-all ${isBought ? 'bg-purple-900/60 border-purple-500 text-purple-200 shadow' : 'bg-slate-800/80 border-slate-700 text-slate-400 hover:text-white'}`}>
+                                    {lang} {isBought ? '✓ (-1 INT)' : ''}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+
+                          {/* KITS DE FERRAMENTAS COM GRAUS */}
+                          <div className="space-y-2 pt-2 border-t border-slate-800">
+                            <div className="text-xs font-bold text-emerald-400 uppercase">🧰 Categoria dos Kits de Ferramentas (Graus de Competência com INT):</div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 bg-slate-900 p-2.5 rounded-lg border border-slate-800">
+                              {TOOL_KITS.map(tool => {
+                                const curCatLevel = toolCategories[tool] || 0;
+                                const competency = COMPETENCY_LEVELS[curCatLevel];
+                                return (
+                                  <div key={tool} className="flex justify-between items-center bg-slate-950/60 p-2 rounded border border-slate-800 text-xs">
+                                    <div>
+                                      <div className="font-bold text-slate-200">{tool}</div>
+                                      <div className="text-[10px] text-emerald-400">{competency.name} (+{competency.bonus})</div>
+                                    </div>
+                                    <select 
+                                      value={curCatLevel}
+                                      onChange={(e) => handleToolCategoryChange(tool, parseInt(e.target.value))}
+                                      className="bg-slate-800 text-xs text-slate-200 border border-slate-700 rounded p-1">
+                                      {COMPETENCY_LEVELS.map(lvl => (
+                                        <option key={lvl.level} value={lvl.level}>
+                                          {lvl.level}. {lvl.name} (+{lvl.bonus})
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+
                           <div className="flex gap-3 pt-2">
-                            <button onClick={() => setStep(4)} className="w-1/3 py-2.5 bg-slate-800 text-slate-300 rounded-lg font-bold text-xs sm:text-sm">⬅ Voltar</button>
-                            <button onClick={() => setStep(6)} className="t20-btn-primary w-2/3 py-2.5 rounded-lg font-bold text-xs sm:text-sm">Ver Resumo da Ficha ➔</button>
+                            <button onClick={() => setStep(5)} className="w-1/3 py-2.5 bg-slate-800 text-slate-300 rounded-lg font-bold text-xs sm:text-sm">⬅ Voltar</button>
+                            <button onClick={() => setStep(7)} className="t20-btn-primary w-2/3 py-2.5 rounded-lg font-bold text-xs sm:text-sm">Ver Resumo Completo ➔</button>
                           </div>
                         </div>
                       )}
 
-                      {/* Passo 6: Resumo da Ficha Final */}
-                      {step === 6 && (
-                        <div className="t20-card p-4 sm:p-5 space-y-4 border-2 border-red-500/40">
+                      {/* Passo 7: RESUMO COMPLETO DA FICHA */}
+                      {step === 7 && (
+                        <div className="t20-card p-4 sm:p-5 space-y-5 border-2 border-red-500/40">
                           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-                            <h2 className="text-2xl font-black text-red-500">FICHA PRONTA!</h2>
-                            <div className="flex gap-2 w-full sm:w-auto">
+                            <h2 className="text-2xl font-black text-red-500 print-black">FICHA FINALIZADA</h2>
+                            <div className="flex gap-2 w-full sm:w-auto no-print">
                               <button onClick={handleSaveCharacter} className="flex-1 sm:flex-none px-4 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-xs font-bold text-white rounded-lg">
-                                💾 Salvar Ficha
+                                💾 Salvar Personagem
                               </button>
-                              <button onClick={() => window.print()} className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-300 rounded-lg">
+                              <button onClick={() => window.print()} className="px-3 py-1.5 bg-slate-800 text-xs font-bold text-slate-300 rounded-lg">
                                 🖨️ Imprimir
                               </button>
                             </div>
                           </div>
-                          
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-slate-900 p-3 sm:p-4 rounded-lg">
+
+                          {/* CABEÇALHO */}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-slate-900 p-3 rounded-lg border border-slate-800 print-border">
                             <div>
-                              <label className="text-[10px] text-slate-500 uppercase font-bold">Nome do Personagem</label>
-                              <input type="text" placeholder="Digite o nome..." value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded p-2 text-white font-bold mt-1 text-sm focus:outline-none focus:border-red-500" />
+                              <label className="text-[10px] text-slate-500 uppercase font-bold print-black">Nome do Personagem</label>
+                              <input type="text" placeholder="Digite o nome..." value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded p-2 text-white font-bold mt-1 text-sm focus:outline-none focus:border-red-500 print-black print-border" />
                             </div>
                             <div>
-                              <div className="text-[10px] text-slate-500 uppercase font-bold">Conceito</div>
-                              <div className="text-xs sm:text-sm font-bold text-slate-200 mt-2">
-                                {selectedRace} - {selectedClass} {selectedSubChoice ? `(${selectedSubChoice})` : ''} (Nível 1)
+                              <div className="text-[10px] text-slate-500 uppercase font-bold print-black">Conceito</div>
+                              <div className="text-xs sm:text-sm font-bold text-slate-200 mt-2 print-black">
+                                {selectedRace} {selectedSubRace ? `(${selectedSubRace})` : ''} - {selectedOrigin.split(' ')[0]} - {selectedClass} {selectedSubChoice ? `(${selectedSubChoice})` : ''}
                               </div>
                             </div>
                           </div>
 
-                          {/* PV & PM */}
+                          {/* PAINEL DE ATRIBUTOS */}
+                          <div>
+                            <div className="text-xs font-bold text-amber-400 uppercase mb-2 print-black">📊 Atributos e Modificadores:</div>
+                            <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 text-center">
+                              {Object.keys(attributes).map(attr => {
+                                const totalVal = getFinalAttr(attr);
+                                const modVal = getMod(attr);
+                                const isKey = attr === classKeyAttr;
+                                return (
+                                  <div key={attr} className={`p-2 rounded-lg border ${isKey ? 'bg-amber-950/40 border-amber-500' : 'bg-slate-900 border-slate-800'} print-border`}>
+                                    <div className="text-[10px] font-bold text-slate-400 print-black">{attr} {isKey ? '🌟' : ''}</div>
+                                    <div className="text-lg font-black text-white print-black">{totalVal}</div>
+                                    <div className="text-xs font-bold text-amber-400 print-black">{modVal >= 0 ? `+${modVal}` : modVal}</div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+
+                          {/* RECURSOS PV / PM */}
                           <div className="grid grid-cols-2 gap-3 text-center">
-                            <div className="p-3 bg-red-950/40 border border-red-800/60 rounded-lg">
-                              <div className="text-xs font-bold text-red-400">PV (Vida)</div>
-                              <div className="text-xl sm:text-2xl font-black text-white">{totalPV}</div>
+                            <div className="p-3 bg-red-950/40 border border-red-800/60 rounded-lg print-border">
+                              <div className="text-xs font-bold text-red-400 print-black">PV (Vida)</div>
+                              <div className="text-2xl font-black text-white print-black">{totalPV}</div>
                             </div>
-                            <div className="p-3 bg-blue-950/40 border border-blue-800/60 rounded-lg">
-                              <div className="text-xs font-bold text-blue-400">PM (Mana)</div>
-                              <div className="text-xl sm:text-2xl font-black text-white">{totalPM}</div>
-                            </div>
-                          </div>
-
-                          {/* Defesas */}
-                          <div>
-                            <div className="text-xs font-bold text-cyan-400 uppercase mb-1">Defesas (8 + Proficiência + Atributo):</div>
-                            <div className="grid grid-cols-3 gap-2 sm:gap-3 text-center">
-                              <div className="p-2 bg-slate-900 border border-slate-800 rounded-lg">
-                                <div className="text-[10px] font-bold text-slate-400">Reflexos</div>
-                                <div className="text-base sm:text-lg font-black text-white">{finalReflexos}</div>
-                                <div className="text-[9px] text-amber-400">{COMPETENCY_LEVELS[defenseCategories.Reflexos || 0].name}</div>
-                              </div>
-                              <div className="p-2 bg-slate-900 border border-slate-800 rounded-lg">
-                                <div className="text-[10px] font-bold text-slate-400">Vontade</div>
-                                <div className="text-base sm:text-lg font-black text-white">{finalVontade}</div>
-                                <div className="text-[9px] text-amber-400">{COMPETENCY_LEVELS[defenseCategories.Vontade || 0].name}</div>
-                              </div>
-                              <div className="p-2 bg-slate-900 border border-slate-800 rounded-lg">
-                                <div className="text-[10px] font-bold text-slate-400">Fortitude</div>
-                                <div className="text-base sm:text-lg font-black text-white">{finalFortitude}</div>
-                                <div className="text-[9px] text-amber-400">{COMPETENCY_LEVELS[defenseCategories.Fortitude || 0].name}</div>
-                              </div>
+                            <div className="p-3 bg-blue-950/40 border border-blue-800/60 rounded-lg print-border">
+                              <div className="text-xs font-bold text-blue-400 print-black">PM (Mana)</div>
+                              <div className="text-2xl font-black text-white print-black">{totalPM}</div>
                             </div>
                           </div>
 
-                          {/* Ataques Principais */}
+                          {/* DEFESAS E ATAQUES */}
                           <div>
-                            <div className="text-xs font-bold text-red-400 uppercase mb-1">Ataques Principais:</div>
+                            <div className="text-xs font-bold text-cyan-400 uppercase mb-1 print-black">🛡️ Defesas (8 + Proficiência + Atributo):</div>
+                            <div className="grid grid-cols-3 gap-2 text-center mb-3">
+                              <div className="p-2 bg-slate-900 border border-slate-800 rounded-lg print-border">
+                                <div className="text-[10px] font-bold text-slate-400 print-black">Reflexos</div>
+                                <div className="text-lg font-black text-white print-black">{finalReflexos}</div>
+                                <div className="text-[9px] text-amber-400 print-black">{COMPETENCY_LEVELS[defenseCategories.Reflexos || 0].name}</div>
+                              </div>
+                              <div className="p-2 bg-slate-900 border border-slate-800 rounded-lg print-border">
+                                <div className="text-[10px] font-bold text-slate-400 print-black">Vontade</div>
+                                <div className="text-lg font-black text-white print-black">{finalVontade}</div>
+                                <div className="text-[9px] text-amber-400 print-black">{COMPETENCY_LEVELS[defenseCategories.Vontade || 0].name}</div>
+                              </div>
+                              <div className="p-2 bg-slate-900 border border-slate-800 rounded-lg print-border">
+                                <div className="text-[10px] font-bold text-slate-400 print-black">Fortitude</div>
+                                <div className="text-lg font-black text-white print-black">{finalFortitude}</div>
+                                <div className="text-[9px] text-amber-400 print-black">{COMPETENCY_LEVELS[defenseCategories.Fortitude || 0].name}</div>
+                              </div>
+                            </div>
+
+                            <div className="text-xs font-bold text-red-400 uppercase mb-1 print-black">⚔️ Ataques Principais:</div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-center">
-                              <div className="p-2 bg-slate-900 border border-slate-800 rounded-lg flex justify-between items-center px-3">
+                              <div className="p-2 bg-slate-900 border border-slate-800 rounded-lg flex justify-between items-center px-3 print-border">
                                 <div className="text-left">
-                                  <div className="text-xs font-bold text-slate-200">Luta (FOR)</div>
-                                  <div className="text-[9px] text-amber-400">{COMPETENCY_LEVELS[attackCategories.Luta || 0].name}</div>
+                                  <div className="text-xs font-bold text-slate-200 print-black">Luta (FOR)</div>
+                                  <div className="text-[9px] text-amber-400 print-black">{COMPETENCY_LEVELS[attackCategories.Luta || 0].name}</div>
                                 </div>
-                                <div className="text-lg font-black text-white">{finalLuta >= 0 ? `+${finalLuta}` : finalLuta}</div>
+                                <div className="text-lg font-black text-white print-black">{finalLuta >= 0 ? `+${finalLuta}` : finalLuta}</div>
                               </div>
-                              <div className="p-2 bg-slate-900 border border-slate-800 rounded-lg flex justify-between items-center px-3">
+                              <div className="p-2 bg-slate-900 border border-slate-800 rounded-lg flex justify-between items-center px-3 print-border">
                                 <div className="text-left">
-                                  <div className="text-xs font-bold text-slate-200">Pontaria (DES)</div>
-                                  <div className="text-[9px] text-amber-400">{COMPETENCY_LEVELS[attackCategories.Pontaria || 0].name}</div>
+                                  <div className="text-xs font-bold text-slate-200 print-black">Pontaria (DES)</div>
+                                  <div className="text-[9px] text-amber-400 print-black">{COMPETENCY_LEVELS[attackCategories.Pontaria || 0].name}</div>
                                 </div>
-                                <div className="text-lg font-black text-white">{finalPontaria >= 0 ? `+${finalPontaria}` : finalPontaria}</div>
+                                <div className="text-lg font-black text-white print-black">{finalPontaria >= 0 ? `+${finalPontaria}` : finalPontaria}</div>
                               </div>
                             </div>
                             
-                            {/* Ataque Básico da Sub-escolha */}
                             {activeSubChoiceObj && (
-                              <div className="mt-2 p-2.5 bg-blue-950/40 border border-blue-800/60 rounded-lg text-xs">
-                                <span className="font-bold text-blue-300">Ataque de {CLASSES[selectedClass].subChoiceLabel} ({activeSubChoiceObj.attackName}): </span>
-                                <span className="text-slate-300">{activeSubChoiceObj.attackDesc}</span>
+                              <div className="mt-2 p-2.5 bg-blue-950/40 border border-blue-800/60 rounded-lg text-xs print-border">
+                                <span className="font-bold text-blue-300 print-black">Ataque Básico de {CLASSES[selectedClass].subChoiceLabel} ({activeSubChoiceObj.attackName}): </span>
+                                <span className="text-slate-300 print-black">{activeSubChoiceObj.attackDesc}</span>
                               </div>
                             )}
                           </div>
 
-                          {/* Tabela Resumo de Perícias */}
+                          {/* RESISTÊNCIAS */}
                           <div>
-                            <div className="text-xs font-bold text-slate-300 uppercase mb-2">Tabela de Perícias:</div>
-                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 bg-slate-900 p-3 rounded-lg border border-slate-800 max-h-40 overflow-y-auto custom-scrollbar">
+                            <div className="text-xs font-bold text-cyan-400 uppercase mb-2 print-black">🛡️ Resistências de Dano:</div>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                              {Object.entries(resistances).map(([type, value]) => (
+                                <div key={type} className={`p-2 rounded border flex justify-between items-center text-xs ${value > 0 ? 'bg-cyan-950/40 border-cyan-700 text-cyan-200' : 'bg-slate-900 border-slate-800 text-slate-500'} print-border`}>
+                                  <span className="print-black">{type}:</span>
+                                  <span className="font-bold print-black">{value}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* TABELA COMPLETA DE PERÍCIAS */}
+                          <div>
+                            <div className="text-xs font-bold text-slate-300 uppercase mb-2 print-black">📋 Tabela Completa de Perícias:</div>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 bg-slate-900 p-3 rounded-lg border border-slate-800 print-border">
                               {SKILLS_LIST.map((skill) => {
                                 const catLevel = skillCategories[skill.name] || 0;
                                 const attrMod = getMod(skill.attr);
@@ -961,52 +1502,87 @@
                                 const totalBonus = attrMod + profBonus;
 
                                 return (
-                                  <div key={skill.name} className="flex justify-between items-center text-xs p-1 bg-slate-800/40 rounded">
-                                    <span className="text-slate-300 truncate">{skill.name}:</span>
-                                    <span className="font-bold text-amber-400">{totalBonus >= 0 ? `+${totalBonus}` : totalBonus}</span>
+                                  <div key={skill.name} className="flex justify-between items-center text-xs p-1 bg-slate-800/40 rounded print-border">
+                                    <span className="text-slate-300 print-black">{skill.name} <span className="text-[10px] text-slate-500 print-black">({skill.attr})</span>:</span>
+                                    <span className="font-bold text-amber-400 print-black">{totalBonus >= 0 ? `+${totalBonus}` : totalBonus}</span>
                                   </div>
                                 );
                               })}
                             </div>
                           </div>
 
-                          {/* Poderes Escolhidos */}
-                          {totalPowersCount > 0 && (
-                            <div className="bg-slate-900 p-4 rounded-lg space-y-3">
-                              <div className="text-xs font-bold text-amber-400 uppercase border-b border-slate-800 pb-1">Poderes Escolhidos:</div>
-                              {Object.entries(selectedPowers).map(([category, ids]) => {
-                                if (ids.length === 0) return null;
-                                return (
-                                  <div key={category} className="space-y-1">
-                                    <span className="text-xs font-semibold text-slate-400">🔹 Poderes {category}:</span>
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                      {ids.map(id => {
-                                        const p = POWERS_DATABASE[category]?.find(x => x.id === id);
-                                        return (
-                                          <div key={id} className="bg-slate-800 p-2 rounded text-xs border border-slate-700">
-                                            <span className="font-bold text-slate-200">{p?.name}: </span>
-                                            <span className="text-slate-400">{p?.desc}</span>
-                                          </div>
-                                        );
-                                      })}
-                                    </div>
-                                  </div>
-                                );
-                              })}
+                          {/* IDIOMAS E KITS */}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-slate-900 p-4 rounded-lg border border-slate-800 print-border">
+                            <div>
+                              <div className="text-xs font-bold text-purple-400 uppercase mb-1 print-black">🗣️ Idiomas Adquiridos:</div>
+                              <div className="text-xs text-slate-200 font-semibold print-black">
+                                Comum{boughtLanguages.length > 0 ? `, ${boughtLanguages.join(', ')}` : ''}
+                              </div>
                             </div>
-                          )}
+                            <div>
+                              <div className="text-xs font-bold text-emerald-400 uppercase mb-1 print-black">🧰 Categorias de Kits / Ferramentas:</div>
+                              <div className="text-xs text-slate-300 space-y-0.5 print-black">
+                                {Object.entries(toolCategories).filter(([_, catLvl]) => catLvl > 0).length === 0 ? (
+                                  <span className="text-slate-500 italic print-black">Nenhum kit treinado acima de Destreinado</span>
+                                ) : (
+                                  Object.entries(toolCategories).filter(([_, catLvl]) => catLvl > 0).map(([tName, catLvl]) => (
+                                    <div key={tName} className="font-semibold text-emerald-300 print-black">
+                                      • {tName}: <span className="text-amber-400 print-black">{COMPETENCY_LEVELS[catLvl].name} (+{COMPETENCY_LEVELS[catLvl].bonus})</span>
+                                    </div>
+                                  ))
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* PAINEL DE EQUIPAMENTOS */}
+                          <div className="bg-slate-900 p-4 rounded-lg space-y-3 border border-slate-800 print-border">
+                            <div className="text-xs font-bold text-emerald-400 uppercase border-b border-slate-800 pb-2 print-black">
+                              🎒 Equipamentos & Inventário
+                            </div>
+                            
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                              {['Arma', 'Armadura', 'Ferramenta'].map(cat => (
+                                <div key={cat} className="space-y-2 bg-slate-950/60 p-2.5 rounded border border-slate-800 print-border">
+                                  <div className="text-[11px] font-bold text-slate-400 uppercase border-b border-slate-800 pb-1 print-black">{cat}s</div>
+                                  <div className="space-y-1.5">
+                                    {equipment.filter(i => i.category === cat).map((item, idx) => (
+                                      <div key={idx} className="flex justify-between items-center text-xs bg-slate-900 p-1.5 rounded border border-slate-800 print-border">
+                                        <span className="text-slate-200 print-black">{item.name}</span>
+                                        <button onClick={() => removeEquipmentItem(equipment.indexOf(item))} className="text-red-400 hover:text-red-300 ml-1 font-bold no-print">×</button>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+
+                            <div className="flex gap-2 pt-2 border-t border-slate-800 no-print">
+                              <select value={newItemCat} onChange={(e) => setNewItemCat(e.target.value)} className="bg-slate-800 text-xs text-slate-200 border border-slate-700 rounded p-2">
+                                <option value="Arma">Arma</option>
+                                <option value="Armadura">Armadura</option>
+                                <option value="Ferramenta">Ferramenta</option>
+                              </select>
+                              <input type="text" placeholder="Nome do item..." value={newItemName} onChange={(e) => setNewItemName(e.target.value)} className="flex-1 bg-slate-800 border border-slate-700 rounded p-2 text-xs text-white" />
+                              <button onClick={addEquipmentItem} className="px-3 py-2 bg-emerald-700 text-white rounded text-xs font-bold">➕ Adicionar</button>
+                            </div>
+                          </div>
                         </div>
                       )}
                     </div>
 
-                    {/* Resumo Lateral Responsivo */}
-                    <div className="t20-card p-4 sm:p-5 h-fit space-y-3">
+                    {/* Resumo Lateral */}
+                    <div className="t20-card p-4 sm:p-5 h-fit space-y-3 no-print">
                       <h3 className="text-base font-bold text-slate-200 border-b border-slate-800 pb-2">Resumo Rápido</h3>
                       <div className="space-y-2 text-xs sm:text-sm">
                         <div className="flex justify-between"><span className="text-slate-500">Raça:</span> <span className="font-bold text-red-400">{selectedRace}</span></div>
+                        {selectedSubRace && <div className="flex justify-between"><span className="text-slate-500">Subraça:</span> <span className="font-bold text-amber-400">{selectedSubRace}</span></div>}
+                        <div className="flex justify-between"><span className="text-slate-500">Origem:</span> <span className="font-bold text-amber-400 truncate max-w-[120px]">{selectedOrigin.split(' ')[0]}</span></div>
                         <div className="flex justify-between"><span className="text-slate-500">Classe:</span> <span className="font-bold text-red-400">{selectedClass}</span></div>
-                        {selectedSubChoice && (
-                          <div className="flex justify-between"><span className="text-slate-500">Sub-escolha:</span> <span className="font-bold text-blue-400">{selectedSubChoice}</span></div>
+                        {classKeyAttr ? (
+                          <div className="flex justify-between"><span className="text-slate-500">Mod Chave:</span> <span className="font-bold text-amber-400">{classKeyAttr} (+{classKeyMod})</span></div>
+                        ) : (
+                          <div className="flex justify-between"><span className="text-slate-500">Mod Chave:</span> <span className="font-bold text-slate-500">Nenhum</span></div>
                         )}
                         <div className="flex justify-between"><span className="text-slate-500">PV:</span> <span className="font-bold text-white">{totalPV}</span></div>
                         <div className="flex justify-between"><span className="text-slate-500">PM:</span> <span className="font-bold text-white">{totalPM}</span></div>
@@ -1018,79 +1594,241 @@
             </div>
           )}
 
-          {/* ABA PRINCIPAL 2: REGRAS RÁPIDAS */}
+          {/* ABA REGRAS */}
           {activeTab === 'rules' && (
             <div className="space-y-4">
-              <h2 className="text-2xl font-bold text-slate-100">Guia Rápido de Regras (Cheat Sheet)</h2>
+              <h2 className="text-2xl font-bold text-slate-100">Guia Rápido de Regras</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="t20-card p-4 space-y-2">
-                  <h3 className="font-bold text-red-400 text-lg">⚡ Economia de Ações no Combate</h3>
-                  <ul className="list-disc list-inside text-xs text-slate-400 space-y-1">
-                    <li><strong>1 Ação Padrão:</strong> Atacar, lançar magia.</li>
-                    <li><strong>1 Ação de Movimento:</strong> Deslocar-se, sacar arma.</li>
-                    <li><strong>Ações Livres:</strong> Falar brevemente.</li>
-                    <li><strong>1 Reação:</strong> Usada fora do seu turno.</li>
-                  </ul>
-                </div>
-                <div className="t20-card p-4 space-y-2">
-                  <h3 className="font-bold text-blue-400 text-lg">🔮 Limite de Pontos de Mana (PM)</h3>
-                  <p className="text-xs text-slate-300">O gasto máximo de PMs em uma única habilidade/magia é igual ao seu Nível de Personagem.</p>
+                  <h3 className="font-bold text-red-400 text-lg">⚡ Pontos de Inteligência</h3>
+                  <p className="text-xs text-slate-300">Seus pontos de INT são usados para subir Graus de Categoria em Perícias, Defesas, Ataques, Idiomas Extras e Kits de Ferramentas!</p>
                 </div>
               </div>
             </div>
           )}
 
-          {/* ABA PRINCIPAL 3: O MUNDO */}
+          {/* ABA O MUNDO */}
           {activeTab === 'world' && (
             <div className="t20-card p-4 sm:p-6 space-y-6">
-              <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-slate-800 pb-4 gap-4">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-slate-800 pb-4 gap-3">
                 <div>
-                  <h2 className="text-2xl font-black text-red-500">O Mundo</h2>
-                  <p className="text-xs text-slate-400">Navegue pelas sub-abas abaixo ou clique nos hyperlinks nos textos</p>
+                  <h2 className="text-2xl font-black text-red-500">O Mundo & As 12 Capitais</h2>
+                  <p className="text-xs text-slate-400">Lore, Territórios, Facções e Fatos Históricos do Cenário</p>
                 </div>
-                <button onClick={() => setIsEditingLore(!isEditingLore)} className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-300 rounded border border-slate-700">
-                  {isEditingLore ? '💾 Salvar Alterações' : '✏️ Editar Conteúdo do Mundo'}
-                </button>
-              </div>
-
-              <div className="flex flex-wrap gap-2 bg-slate-900/80 p-2 rounded-lg border border-slate-800">
-                {[
-                  { id: 'overview', label: '📜 Visão Geral' },
-                  { id: 'regioes', label: '🗺️ Regiões' },
-                  { id: 'facoes', label: '🛡️ Facções' },
-                  { id: 'fatos', label: '✨ Segredos & Fatos' }
-                ].map((sub) => (
-                  <button
-                    key={sub.id}
-                    onClick={() => setWorldSubTab(sub.id)}
-                    className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${worldSubTab === sub.id ? 'bg-red-600 text-white shadow' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}>
-                    {sub.label}
+                
+                {/* SUB-ABAS DE NAVEGAÇÃO DO MUNDO */}
+                <div className="flex flex-wrap gap-1.5 bg-slate-900 p-1.5 rounded-lg border border-slate-800">
+                  <button onClick={() => setWorldSubTab('overview')} className={`px-3 py-1.5 rounded text-xs font-bold transition-all ${worldSubTab === 'overview' ? 'bg-red-600 text-white' : 'text-slate-400 hover:text-white'}`}>
+                    🌐 Visão Geral
                   </button>
-                ))}
+                  <button onClick={() => setWorldSubTab('regioes')} className={`px-3 py-1.5 rounded text-xs font-bold transition-all ${worldSubTab === 'regioes' ? 'bg-red-600 text-white' : 'text-slate-400 hover:text-white'}`}>
+                    🏰 Capitais
+                  </button>
+                  <button onClick={() => setWorldSubTab('facoes')} className={`px-3 py-1.5 rounded text-xs font-bold transition-all ${worldSubTab === 'facoes' ? 'bg-red-600 text-white' : 'text-slate-400 hover:text-white'}`}>
+                    ⚔️ Facções
+                  </button>
+                  <button onClick={() => setWorldSubTab('fatos')} className={`px-3 py-1.5 rounded text-xs font-bold transition-all ${worldSubTab === 'fatos' ? 'bg-red-600 text-white' : 'text-slate-400 hover:text-white'}`}>
+                    📜 Fatos & Segredos
+                  </button>
+                </div>
               </div>
 
-              {isEditingLore ? (
-                <div className="space-y-4 bg-slate-900 p-4 rounded-lg border border-slate-800">
-                  <div className="text-xs font-bold text-amber-400 mb-2">Editando a sub-aba atual: [{worldSubTab}]</div>
-                  <div>
-                    <label className="text-xs font-bold text-slate-400">Título da Seção:</label>
-                    <input type="text" value={worldData[worldSubTab].title} onChange={(e) => { const val = e.target.value; setWorldData(prev => ({...prev, [worldSubTab]: {...prev[worldSubTab], title: val}})); }} className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-white font-bold mt-1" />
-                  </div>
-                  <div>
-                    <label className="text-xs font-bold text-slate-400">Texto / Lore:</label>
-                    <textarea rows={6} value={worldData[worldSubTab].desc} onChange={(e) => { const val = e.target.value; setWorldData(prev => ({...prev, [worldSubTab]: {...prev[worldSubTab], desc: val}})); }} className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-slate-200 mt-1 text-sm font-mono" />
+              {/* CONTEÚDO DAS SUB-ABAS COM HYPERLINKS INTERNOS */}
+              {worldSubTab === 'overview' && (
+                <div className="space-y-4 text-xs text-slate-300 leading-relaxed">
+                  <div className="p-4 bg-slate-900 rounded-xl border border-slate-800 space-y-2">
+                    <h3 className="text-base font-bold text-red-400">O Continente das Doze Estrelas</h3>
+                    <p>
+                      Um vasto mundo governado pela concordância das <a href="#capitais" onClick={(e) => { e.preventDefault(); setWorldSubTab('regioes'); }} className="text-amber-400 underline font-bold hover:text-amber-300">12 Capitais Imperiais</a>. Cada capital mantém um monopólio cultural, militar ou mágico, influenciando diretamente o treinamento de seus cidadãos.
+                    </p>
+                    <p>
+                      Conflitos velados entre as <a href="#facoes" onClick={(e) => { e.preventDefault(); setWorldSubTab('facoes'); }} className="text-blue-400 underline font-bold hover:text-blue-300">Grandes Facções</a> ameaçam romper a trégua secular, enquanto investigadores buscam desvendar os <a href="#fatos" onClick={(e) => { e.preventDefault(); setWorldSubTab('fatos'); }} className="text-purple-400 underline font-bold hover:text-purple-300">Segredos Antigos</a> esquecidos nas ruínas continentais.
+                    </p>
                   </div>
                 </div>
-              ) : (
-                <div className="p-5 bg-slate-900/60 border border-slate-800 rounded-lg space-y-4">
-                  <h3 className="text-xl font-bold text-red-400">{worldData[worldSubTab].title}</h3>
-                  <div className="text-slate-300 leading-relaxed text-sm space-y-2">
-                    {renderFormattedText(worldData[worldSubTab].desc)}
+              )}
+
+              {worldSubTab === 'regioes' && (
+                <div className="space-y-4">
+                  <h3 className="text-base font-bold text-amber-400">Capitais Imperiais & Territórios</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                    {Object.keys(ORIGINS).map(key => (
+                      <div key={key} className="p-3 bg-slate-900 rounded-lg border border-slate-800 space-y-1">
+                        <div className="font-bold text-slate-100 text-sm">{key}</div>
+                        <p className="text-slate-400">{ORIGINS[key].desc}</p>
+                        <div className="text-[11px] text-amber-400 font-semibold pt-1">
+                          Perícia Associada: {ORIGINS[key].skillBonus}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {worldSubTab === 'facoes' && (
+                <div className="space-y-4">
+                  <h3 className="text-base font-bold text-blue-400">Facções & Ordens Continentais</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                    <div className="p-3 bg-slate-900 rounded-lg border border-slate-800 space-y-1">
+                      <div className="font-bold text-slate-100 text-sm">O Almirantado Solar</div>
+                      <p className="text-slate-400">Controladores das rotas de <a href="#porto" onClick={(e) => { e.preventDefault(); setWorldSubTab('regioes'); }} className="text-amber-400 underline font-bold">Porto Solis</a> e defensores das águas comerciais.</p>
+                    </div>
+                    <div className="p-3 bg-slate-900 rounded-lg border border-slate-800 space-y-1">
+                      <div className="font-bold text-slate-100 text-sm">Círculo dos Arcanistas</div>
+                      <p className="text-slate-400">Sediados em <a href="#kael" onClick={(e) => { e.preventDefault(); setWorldSubTab('regioes'); }} className="text-amber-400 underline font-bold">Kael-Thas</a>, guardam tomos proibidos e controlam o fluxo de mana.</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {worldSubTab === 'fatos' && (
+                <div className="space-y-4">
+                  <h3 className="text-base font-bold text-purple-400">Segredos & Histórias do Mundo</h3>
+                  <div className="p-4 bg-slate-900 rounded-lg border border-slate-800 space-y-2 text-xs text-slate-300">
+                    <div className="font-bold text-slate-100 text-sm">O Pacto das Doze Chaves</div>
+                    <p>Assinado após a Grande Calamidade, estabeleceu que cada capital teria autoridade sobre um ramo do saber humano e arcano.</p>
+                    <p className="pt-2">
+                      Aprenda mais sobre os defensores desse pacto em <a href="#facoes" onClick={(e) => { e.preventDefault(); setWorldSubTab('facoes'); }} className="text-blue-400 underline font-bold">Facções</a> ou explore as <a href="#regioes" onClick={(e) => { e.preventDefault(); setWorldSubTab('regioes'); }} className="text-amber-400 underline font-bold">Capitais</a>.
+                    </p>
                   </div>
                 </div>
               )}
             </div>
           )}
+
+{/* Modal de Regras Completo */}
+{showRulesModal && (
+  <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
+    <div className="bg-slate-900 border border-slate-800 rounded-xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+      
+      {/* Cabecera do Modal */}
+      <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/50">
+        <div className="flex items-center gap-2">
+          <span className="text-xl">📖</span>
+          <h2 className="text-lg font-bold text-slate-100">Guia de Regras & Referência</h2>
+        </div>
+        <button
+          onClick={() => setShowRulesModal(false)}
+          className="text-slate-400 hover:text-white font-bold p-1 rounded-lg hover:bg-slate-800 transition-all text-sm">
+          ✕ Fechar
+        </button>
+      </div>
+
+      {/* Navegação de Sub-abas */}
+      <div className="flex border-b border-slate-800 bg-slate-950/60 overflow-x-auto px-4 gap-1">
+        {['Ficha', 'Combate', 'Viagem', 'Condições'].map((tab) => (
+          <button
+            key={tab}
+            onClick={() => setActiveRulesTab(tab)}
+            className={`py-3 px-4 text-xs font-bold transition-all border-b-2 whitespace-nowrap ${
+              activeRulesTab === tab
+                ? 'border-red-500 text-red-400 bg-slate-900/50'
+                : 'border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-900/30'
+            }`}>
+            {tab}
+          </button>
+        ))}
+      </div>
+
+      {/* Conteúdo das Sub-abas */}
+      <div className="p-5 overflow-y-auto space-y-4 text-xs sm:text-sm text-slate-300 flex-1">
+        
+        {/* ABA: FICHA */}
+        {activeRulesTab === 'Ficha' && (
+          <div className="space-y-4">
+            <h3 className="text-base font-bold text-slate-100 border-b border-slate-800 pb-2">
+              📋 Regras de Ficha & Testes
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="bg-slate-950/60 p-3.5 rounded-lg border border-slate-800 space-y-1">
+                <span className="font-bold text-amber-400">Testes de Perícia:</span>
+                <p className="text-slate-400">Role 1d20 + Modificador de Atributo + Treino + Bônus Diversos contra a CD (Classe de Dificuldade) estipulada pelo mestre.</p>
+              </div>
+              <div className="bg-slate-950/60 p-3.5 rounded-lg border border-slate-800 space-y-1">
+                <span className="font-bold text-amber-400">Pontos de Vida & Mana:</span>
+                <p className="text-slate-400">PV representa sua resiliência física e Mana (PM) alimenta suas habilidades especiais, magias e recursos de classe.</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ABA: COMBATE */}
+        {activeRulesTab === 'Combate' && (
+          <div className="space-y-4">
+            <h3 className="text-base font-bold text-slate-100 border-b border-slate-800 pb-2">
+              ⚔️ Ações de Combate
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="bg-slate-950/60 p-3.5 rounded-lg border border-slate-800 space-y-1">
+                <span className="font-bold text-red-400">Ação Padrão:</span>
+                <p className="text-slate-400">Atacar, conjurar uma magia padrão, usar habilidade ativa ou realizar um teste que exija esforço direto.</p>
+              </div>
+              <div className="bg-slate-950/60 p-3.5 rounded-lg border border-slate-800 space-y-1">
+                <span className="font-bold text-blue-400">Ação de Movimento:</span>
+                <p className="text-slate-400">Deslocar-se até seu deslocamento base, sacar/guardar um item, levantar-se de caído ou abrir uma porta.</p>
+              </div>
+              <div className="bg-slate-950/60 p-3.5 rounded-lg border border-slate-800 space-y-1">
+                <span className="font-bold text-emerald-400">Ação Livre & Reação:</span>
+                <p className="text-slate-400">Falar frases curtas, soltar um item. Reações ocorrem fora do seu turno em resposta a gatilhos específicos.</p>
+              </div>
+              <div className="bg-slate-950/60 p-3.5 rounded-lg border border-slate-800 space-y-1">
+                <span className="font-bold text-amber-400">Defesa & Esquiva:</span>
+                <p className="text-slate-400">Sua Defesa é o valor que os inimigos precisam atingir no d20 para acertar um ataque em você.</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ABA: VIAGEM */}
+        {activeRulesTab === 'Viagem' && (
+          <div className="space-y-4">
+            <h3 className="text-base font-bold text-slate-100 border-b border-slate-800 pb-2">
+              🗺️ Exploração & Viagem
+            </h3>
+            <div className="space-y-3">
+              <div className="bg-slate-950/60 p-3.5 rounded-lg border border-slate-800 space-y-1">
+                <span className="font-bold text-amber-400">Marcha & Deslocamento:</span>
+                <p className="text-slate-400">Uma jornada padrão cobre cerca de 24 km por dia em terreno normal. Terrenos difíceis (pântanos, montanhas) reduzem a velocidade pela metade.</p>
+              </div>
+              <div className="bg-slate-950/60 p-3.5 rounded-lg border border-slate-800 space-y-1">
+                <span className="font-bold text-amber-400">Acampamento & Descanso:</span>
+                <p className="text-slate-400">Um descanso longo (8 horas) recupera PV e PM com base no seu nível e condições do acampamento. Requer testes de Sobrevivência para vigília e forrageamento.</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ABA: CONDIÇÕES */}
+        {activeRulesTab === 'Condições' && (
+          <div className="space-y-4">
+            <h3 className="text-base font-bold text-slate-100 border-b border-slate-800 pb-2">
+              🧪 Condições & Status
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="bg-slate-950/60 p-3.5 rounded-lg border border-slate-800 space-y-1">
+                <span className="font-bold text-purple-400">Abatido / Atordoado:</span>
+                <p className="text-slate-400">Não pode realizar ações ou reações. Perde a defesa de Destreza.</p>
+              </div>
+              <div className="bg-slate-950/60 p-3.5 rounded-lg border border-slate-800 space-y-1">
+                <span className="font-bold text-purple-400">Caído:</span>
+                <p className="text-slate-400">-5 em ataques corpo a corpo concedidos aos inimigos próximos. Exige Ação de Movimento para levantar.</p>
+              </div>
+              <div className="bg-slate-950/60 p-3.5 rounded-lg border border-slate-800 space-y-1">
+                <span className="font-bold text-purple-400">Sangrando / Envenenado:</span>
+                <p className="text-slate-400">Recebe dano contínuo no início de cada turno até passar em um teste de Constituição/Cura ou ser curado.</p>
+              </div>
+              <div className="bg-slate-950/60 p-3.5 rounded-lg border border-slate-800 space-y-1">
+                <span className="font-bold text-purple-400">Vulnerável:</span>
+                <p className="text-slate-400">Sofre penalidade de -2 na Defesa e não pode aplicar bônus de esquiva.</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+      </div>
+    </div>
+  </div>
+)}
         </div>
       );
     }
